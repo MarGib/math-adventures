@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Matematyczna Przygoda 15.0</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;800&display=swap');
+
+        :root {
+            --primary: #6C5CE7;
+            --bg-color: #dfe6e9;
+            --card-bg: #ffffff;
+            --success: #00b894;
+            --error: #d63031;
+            --dark: #2d3436;
+            --gold: #fdcb6e;
+            --blue: #0984e3;
+            --main-font: 'Baloo 2', cursive; 
+        }
+
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            font-family: var(--main-font);
+            background-color: var(--bg-color);
+            background-image: radial-gradient(#b2bec3 10%, transparent 11%), radial-gradient(#b2bec3 10%, transparent 11%);
+            background-size: 30px 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            height: 100dvh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .layout-wrapper {
+            width: 100%; height: 100%;
+            max-width: 600px; max-height: 900px;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .game-container {
+            background: var(--card-bg);
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            overflow: hidden; position: relative; z-index: 10;
+        }
+
+        @media (min-width: 601px) {
+            .game-container {
+                height: 95%; width: 95%;
+                border-radius: 30px;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            }
+        }
+
+        /* EKRANY */
+        .screen {
+            display: none; flex-direction: column;
+            height: 100%; width: 100%;
+            padding: 15px; align-items: center;
+        }
+        #screen-profile { display: flex; } 
+
+        /* LOGO I CYTATY */
+        .hero-logo { font-size: clamp(3rem, 8vh, 5rem); animation: bounce 2s infinite; margin-bottom: 1vh; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        
+        h1 { color: var(--primary); margin: 0; line-height: 1; font-size: clamp(1.8rem, 4vh, 2.5rem); text-align: center; }
+        
+        #quote-box {
+            min-height: 60px; display: flex; align-items: center; justify-content: center;
+            margin: 1vh 0; text-align: center;
+        }
+        #quote-display {
+            color: #636e72; font-style: italic; font-size: 1.1rem; font-weight: 800;
+            transition: opacity 0.5s;
+        }
+
+        /* AWATARY */
+        .avatar-grid {
+            display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+            margin: 1vh 0; width: 100%; max-width: 400px;
+        }
+        .avatar-option {
+            font-size: clamp(1.5rem, 4vh, 2.2rem); cursor: pointer; border: 3px solid transparent; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; aspect-ratio: 1/1; background: #f1f2f6; transition: 0.2s;
+        }
+        .avatar-option.selected { border-color: var(--primary); background: #eaf0ff; transform: scale(1.1); }
+
+        .input-name {
+            padding: 12px; border: 3px solid #dfe6e9; border-radius: 15px;
+            font-family: var(--main-font); font-size: 1.3rem; text-align: center;
+            font-weight: 800; width: 80%; outline: none; margin-bottom: 1vh;
+        }
+        .input-name:focus { border-color: var(--primary); }
+
+        /* BUTTONS & SCROLL */
+        .btn-container-bottom {
+            margin-top: auto; width: 100%; flex-shrink: 0;
+            padding-top: 10px;
+        }
+        .btn-big {
+            width: 100%; padding: 15px; font-size: 1.1rem; border-radius: 20px; border: none;
+            cursor: pointer; font-weight: 800; font-family: var(--main-font);
+            background: var(--primary); color: white; margin-top: 5px;
+            box-shadow: 0 4px rgba(0,0,0,0.1);
+        }
+        .btn-big:active { transform: scale(0.98); }
+        .btn-secondary { background: #b2bec3; color: white; }
+        .btn-danger { background: #d63031; color: white; }
+
+        .scroll-content {
+            flex: 1; width: 100%; overflow-y: auto; min-height: 0;
+            display: flex; flex-direction: column; gap: 10px; padding: 5px;
+        }
+
+        /* USTAWIENIA */
+        .settings-label { color: var(--primary); font-weight: 800; font-size: 0.9rem; display: block; margin-bottom: 3px; text-align: left;}
+        .diff-grid { display: flex; gap: 5px; width: 100%; }
+        .btn-diff {
+            flex: 1; padding: 10px 5px; border: 2px solid #dfe6e9; border-radius: 12px;
+            background: white; color: #b2bec3; font-weight: 800; font-size: 0.85rem; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2;
+        }
+        .btn-diff.active { border-color: var(--primary); background: #eaf0ff; color: var(--primary); }
+        .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; }
+        .btn-mode {
+            padding: 15px; font-size: 1rem; border: none; border-radius: 15px;
+            cursor: pointer; color: white; font-weight: 800; font-family: var(--main-font);
+        }
+        .bg-add { background: #FF7675; } .bg-sub { background: #74B9FF; } 
+        .bg-mul { background: #FDCB6E; } .bg-div { background: #55EFC4; } 
+        .bg-mix { background: linear-gradient(45deg, #FF7675, #74B9FF, #FDCB6E, #55EFC4); grid-column: span 2; }
+
+        /* GRA */
+        .game-top-bar { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; flex-shrink: 0;}
+        .combo-badge { background: var(--gold); color: #d35400; padding: 2px 8px; border-radius: 10px; font-weight: 900; font-size: 0.9rem; opacity: 0; transform: scale(0.5); transition: 0.3s; }
+        .combo-badge.visible { opacity: 1; transform: scale(1); }
+
+        /* PÓŁKA Z NAGRODAMI */
+        .rewards-shelf {
+            width: 100%; min-height: 30px; display: flex; justify-content: center; gap: 5px; flex-wrap: wrap;
+            margin-bottom: 5px; flex-shrink: 0; align-items: center;
+        }
+        .shelf-icon { font-size: 1.5rem; animation: popIn 0.4s; }
+        .shelf-icon.special { font-size: 2rem; font-weight: 800; color: var(--gold); text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+
+        /* SYSTEM MULTI-RING */
+        .avatar-wrapper {
+            position: relative; width: 200px; height: 200px;
+            display: flex; justify-content: center; align-items: center;
+            margin: 1vh 0; flex-shrink: 0;
+        }
+        .main-avatar { font-size: 3.5rem; animation: float 3s infinite; z-index: 5; }
+        
+        .power-ring {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            transform: rotate(-90deg); z-index: 1; pointer-events: none;
+        }
+        .ring-bg { stroke: #dfe6e9; stroke-width: 6; fill: none; opacity: 0.3; }
+        .ring-progress { stroke-width: 6; fill: none; stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+        
+        .r1-prog { stroke: var(--success); stroke-dasharray: 377; stroke-dashoffset: 377; } 
+        .r2-prog { stroke: var(--blue); stroke-dasharray: 471; stroke-dashoffset: 471; } 
+        .r3-prog { stroke: var(--gold); stroke-dasharray: 565; stroke-dashoffset: 565; } 
+
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+        @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+        
+        .question-box {
+            background: #f1f2f6; padding: 15px; border-radius: 20px; width: 100%;
+            font-size: clamp(2rem, 5vh, 3rem); font-weight: 800; color: var(--dark); border: 3px solid var(--primary);
+            text-align: center; margin: 1vh 0;
+        }
+        .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; flex-shrink: 0; }
+        .btn-option {
+            background: var(--primary); color: white; padding: 15px; font-size: clamp(1.2rem, 3vh, 1.8rem);
+            border: none; border-radius: 15px; font-weight: 800; font-family: var(--main-font);
+            box-shadow: 0 5px #4834d4; cursor: pointer;
+        }
+        .btn-option:active { transform: translateY(4px); box-shadow: none; }
+        .correct { background: var(--success) !important; box-shadow: 0 5px #009476 !important; }
+        .wrong { background: var(--error) !important; box-shadow: 0 5px #b71517 !important; }
+
+        /* MODALE */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); z-index: 200; display: none;
+            justify-content: center; align-items: center; padding: 10px;
+        }
+        
+        .modal-card {
+            background: white; border-radius: 25px; 
+            width: 100%; max-width: 500px; max-height: 90vh;
+            display: flex; flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        /* RAPORT ZAWSZE NA WIERZCHU */
+        #modal-report { z-index: 300 !important; }
+
+        .modal-header { padding: 15px; text-align: center; border-bottom: 1px solid #f0f0f0; flex-shrink: 0;}
+        .modal-body { padding: 15px; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 15px; border-top: 1px solid #f0f0f0; flex-shrink: 0; }
+
+        /* TABELE */
+        .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        .data-table th { text-align: left; color: #b2bec3; font-weight: 600; padding: 5px; }
+        .data-table td { padding: 8px 5px; border-bottom: 1px solid #f1f2f6; vertical-align: middle; }
+        .data-table tr:last-child td { border-bottom: none; }
+        .row-clickable { cursor: pointer; transition: background 0.2s; }
+        .row-clickable:hover { background: #f8f9fa; }
+
+        .tab-bar { display: flex; gap: 5px; margin-top: 10px; justify-content: center; }
+        .tab-btn { padding: 8px 15px; border: 1px solid #ccc; border-radius: 20px; background: none; cursor: pointer; font-weight: bold; font-size: 0.9rem; }
+        .tab-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .stat-row { display: flex; justify-content: space-between; padding: 10px; background: #f8f9fa; border-radius: 10px; margin-bottom: 5px; font-size: 1rem; font-weight: 600; }
+        .history-item { background: #fff; padding: 10px; border: 1px solid #eee; border-radius: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; border-left: 4px solid #ccc; }
+        .h-good { border-left-color: var(--success); } .h-bad { border-left-color: var(--error); }
+
+        .modal-btn-row { display: flex; gap: 10px; }
+        .modal-btn-row .btn-big { margin-top: 0; flex: 1; width: auto; }
+
+    </style>
+</head>
+<body>
+
+<div class="layout-wrapper">
+    <div class="game-container">
+
+        <!-- EKRAN 1: PROFIL -->
+        <div id="screen-profile" class="screen">
+            <button style="position:absolute; top:10px; right:10px; background:none; border:none; font-size:1.5rem; opacity:0.5;" onclick="toggleFullScreen()">⛶</button>
+            
+            <div class="hero-logo">🧮✨</div>
+            <h1>Matematyczna<br>Przygoda</h1>
+            
+            <div id="quote-box">
+                <div id="quote-display">Liczby nie gryzą! 🔢</div>
+            </div>
+
+            <input type="text" id="username" class="input-name" placeholder="Wpisz imię..." maxlength="10">
+            
+            <div class="avatar-grid">
+                <div class="avatar-option selected">🦉</div><div class="avatar-option">🦁</div><div class="avatar-option">🐼</div><div class="avatar-option">🐱</div><div class="avatar-option">🦊</div>
+                <div class="avatar-option">🐸</div><div class="avatar-option">🐯</div><div class="avatar-option">🐶</div><div class="avatar-option">🐹</div><div class="avatar-option">🐲</div>
+                <div class="avatar-option">🚀</div><div class="avatar-option">👾</div><div class="avatar-option">🤖</div><div class="avatar-option">🦄</div><div class="avatar-option">👻</div>
+            </div>
+
+            <div class="btn-container-bottom">
+                <button class="btn-big" onclick="goToSetup()">Dalej ➡</button>
+                <button class="btn-big btn-secondary" style="margin-top:8px; padding:10px; font-size:0.9rem;" onclick="showLeaderboard()">🏆 Tablica Wyników</button>
+            </div>
+        </div>
+
+        <!-- EKRAN 2: USTAWIENIA -->
+        <div id="screen-setup" class="screen">
+            <div style="width:100%; display:flex; justify-content:center; align-items:center; gap:10px; padding-bottom:10px; border-bottom:1px solid #eee; flex-shrink:0;">
+                <span id="current-avatar-display" style="font-size: 2rem;">🦉</span>
+                <h2 id="greeting-name" style="margin:0; color:#2d3436">Cześć!</h2>
+                <small onclick="switchScreen('screen-profile')" style="color:var(--primary); text-decoration:underline; cursor:pointer;">(Zmień)</small>
+            </div>
+
+            <div class="scroll-content">
+                <div style="margin-bottom:10px;">
+                    <span class="settings-label">Poziom trudności:</span>
+                    <div class="diff-grid">
+                        <div class="btn-diff active" onclick="setDiff('easy', this)">👶 Odkrywca<br><small>0-100</small></div>
+                        <div class="btn-diff" onclick="setDiff('medium', this)">🎒 Podróżnik<br><small>0-500</small></div>
+                        <div class="btn-diff" onclick="setDiff('hard', this)">🚀 Mistrz<br><small>0-1000</small></div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:10px;">
+                    <span class="settings-label">Czas gry:</span>
+                    <select id="timer-select" style="width:100%; padding:10px; border-radius:12px; border:2px solid #dfe6e9; font-size:1rem;">
+                        <option value="0">Trening (Bez czasu)</option>
+                        <option value="1">1 minuta (Sprint)</option>
+                        <option value="3" selected>3 minuty (Standard)</option>
+                        <option value="5">5 minut</option>
+                        <option value="10">10 minut</option>
+                        <option value="15">15 minut</option>
+                        <option value="20">20 minut</option>
+                        <option value="30">30 minut</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom:5px;">
+                    <span class="settings-label">Wybierz misję:</span>
+                    <div class="mode-grid">
+                        <button class="btn-mode bg-add" onclick="startGame('add')">Dodawanie (+)</button>
+                        <button class="btn-mode bg-sub" onclick="startGame('sub')">Odejmowanie (-)</button>
+                        <button class="btn-mode bg-mul" onclick="startGame('mul')">Mnożenie (×)</button>
+                        <button class="btn-mode bg-div" onclick="startGame('div')">Dzielenie (÷)</button>
+                        <button class="btn-mode bg-mix" onclick="startGame('mix')">🎲 MIX</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="btn-container-bottom">
+                <button class="btn-big btn-secondary" style="padding:10px;" onclick="showLeaderboard()">🏆 Tablica Wyników</button>
+            </div>
+        </div>
+
+        <!-- EKRAN 3: GRA -->
+        <div id="screen-game" class="screen">
+            <div class="game-top-bar">
+                <div style="display:flex; align-items:center; gap:5px;">
+                    <span id="game-score" style="font-weight:800; font-size:1.2rem; color:var(--primary)">⭐ 0</span>
+                    <div id="combo-badge" class="combo-badge">COMBO x2 🔥</div>
+                </div>
+                <span id="game-timer" style="background:#2d3436; color:white; padding:2px 12px; border-radius:15px; font-family:monospace;">--:--</span>
+            </div>
+
+            <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; overflow:hidden;">
+                
+                <!-- PÓŁKA Z NAGRODAMI -->
+                <div id="ingame-rewards" class="rewards-shelf"></div>
+
+                <!-- MULTI-RING AVATAR -->
+                <div class="avatar-wrapper">
+                    <svg class="power-ring" viewBox="0 0 220 220">
+                        <circle class="ring-bg" cx="110" cy="110" r="60"></circle>
+                        <circle id="r1-prog" class="ring-progress r1-prog" cx="110" cy="110" r="60"></circle>
+                        <circle class="ring-bg" cx="110" cy="110" r="75"></circle>
+                        <circle id="r2-prog" class="ring-progress r2-prog" cx="110" cy="110" r="75"></circle>
+                        <circle class="ring-bg" cx="110" cy="110" r="90"></circle>
+                        <circle id="r3-prog" class="ring-progress r3-prog" cx="110" cy="110" r="90"></circle>
+                    </svg>
+                    <div class="main-avatar" id="game-avatar">🦉</div>
+                </div>
+                
+                <div class="question-box" id="question-text">? + ? = ?</div>
+            </div>
+
+            <div class="options-grid" id="options-area"></div>
+
+            <div class="btn-container-bottom">
+                <button class="btn-big btn-danger" onclick="confirmExit()">🛑 Zakończ Grę</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL OGÓLNY (Alert) -->
+<div id="modal-alert" class="modal-overlay">
+    <div class="modal-card" style="max-width:350px;">
+        <div class="modal-body" style="text-align:center;">
+            <div style="font-size:3rem; margin-bottom:10px;" id="alert-icon">🤔</div>
+            <h2 id="alert-title" style="margin:0 0 10px 0; color:var(--dark);">Tytuł</h2>
+            <p id="alert-text" style="margin:0; color:#636e72;">Tekst wiadomości...</p>
+        </div>
+        <div class="modal-footer">
+            <div class="modal-btn-row">
+                <button class="btn-big btn-secondary" id="alert-cancel">Anuluj</button>
+                <button class="btn-big" id="alert-ok">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL RAPORTU -->
+<div id="modal-report" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <div id="archive-badge" style="display:none; background:#fdcb6e; padding:2px 10px; border-radius:10px; font-size:0.8rem; font-weight:bold; display:inline-block; margin-bottom:5px;">📜 ARCHIWUM GRY</div>
+            <h2 style="margin:0;">Podsumowanie</h2>
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('summary')">Wyniki</button>
+                <button class="tab-btn" onclick="switchTab('history')">Zadania</button>
+                <button class="tab-btn" onclick="switchTab('extreme')">Ekstrema</button>
+            </div>
+        </div>
+        <div class="modal-body">
+            <div id="tab-summary">
+                <div class="stat-row"><span>Punkty:</span><b id="res-xp" style="color:var(--primary)">0</b></div>
+                <div class="stat-row"><span>Dobre:</span><b id="res-good" style="color:var(--success)">0</b></div>
+                <div class="stat-row"><span>Złe:</span><b id="res-bad" style="color:var(--error)">0</b></div>
+                <div class="stat-row"><span>Skuteczność:</span><b id="res-acc">0%</b></div>
+            </div>
+            <div id="tab-history" style="display:none;"></div>
+            <div id="tab-extreme" style="display:none;">
+                <h4 style="color:var(--success); margin:0 0 10px 0;">🚀 Najszybsze</h4>
+                <div id="list-fastest"></div>
+                <h4 style="color:var(--error); margin:20px 0 10px 0;">🐢 Najwolniejsze</h4>
+                <div id="list-slowest"></div>
+            </div>
+        </div>
+        <!-- PRZYCISKI KOŃCA GRY (BEZ RELOAD) -->
+        <div class="modal-footer" id="report-live-footer">
+            <div class="modal-btn-row">
+                <button class="btn-big" onclick="startGame(settings.mode)">Powtórz to samo</button>
+                <button class="btn-big btn-secondary" onclick="backToSetup()">Wybierz nową grę</button>
+            </div>
+        </div>
+        <!-- PRZYCISK DLA ARCHIWUM -->
+        <div class="modal-footer" id="report-archive-footer" style="display:none;">
+            <button class="btn-big btn-secondary" onclick="closeReport()">Wróć do Tablicy</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL TABLICY WYNIKÓW -->
+<div id="modal-leaderboard" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2 style="margin:0">Tablica Wyników</h2>
+            <small>Kliknij wiersz, aby zobaczyć raport</small>
+        </div>
+        <div class="modal-body" id="leaderboard-content"></div>
+        <div class="modal-footer">
+            <button class="btn-big btn-secondary" style="margin:0" onclick="document.getElementById('modal-leaderboard').style.display='none'">Zamknij</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const quotes = ["Matematyka to supermoc! 🦸‍♂️", "Liczby nie gryzą! 🔢", "Trening czyni mistrza! 🏆", "Dajesz radę! 💪", "Myślenie ma przyszłość! 💡"];
+    const rewardsList = ['🍬','🍭','🍪','🍩','🍦','🎮','🚀','🦄','👑','💎','🧸','🎁','⚽','🎸','🎨'];
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(t) {
+        if(audioCtx.state==='suspended') audioCtx.resume();
+        const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+        o.connect(g); g.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        if(t==='c'){ o.frequency.setValueAtTime(500,now); o.frequency.exponentialRampToValueAtTime(1000,now+0.1); g.gain.setValueAtTime(0.3,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.3); o.start(); o.stop(now+0.3); }
+        else if(t==='w'){ o.type='sawtooth'; o.frequency.setValueAtTime(150,now); o.frequency.linearRampToValueAtTime(100,now+0.3); g.gain.setValueAtTime(0.3,now); g.gain.exponentialRampToValueAtTime(0.01,now+0.3); o.start(); o.stop(now+0.3); }
+        else if(t==='lvl'){ o.type='triangle'; o.frequency.setValueAtTime(400,now); o.frequency.setValueAtTime(600,now+0.1); o.frequency.setValueAtTime(800,now+0.2); g.gain.linearRampToValueAtTime(0,now+0.5); o.start(); o.stop(now+0.5); }
+    }
+
+    let user = { name: "Gracz", avatar: "🦉" };
+    let settings = { diff: 'easy', timeMin: 3, mode: 'add' };
+    let gameState = { score: 0, history: [], timerInterval: null, endTime: 0, active: false, combo: 0, level: 1, nextLevelScore: 100 };
+
+    // UI Start
+    let qIdx = 0;
+    setInterval(() => { qIdx = (qIdx+1)%quotes.length; document.getElementById('quote-display').textContent = quotes[qIdx]; }, 4000);
+
+    document.querySelectorAll('.avatar-option').forEach(el => {
+        el.addEventListener('click', function() {
+            document.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('selected'));
+            this.classList.add('selected');
+            user.avatar = this.textContent;
+        });
+    });
+
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e=>{});
+        else if(document.exitFullscreen) document.exitFullscreen();
+    }
+
+    function switchScreen(id) {
+        ['screen-profile', 'screen-setup', 'screen-game'].forEach(s => document.getElementById(s).style.display = (s===id ? 'flex' : 'none'));
+    }
+
+    function goToSetup() {
+        const n = document.getElementById('username').value.trim();
+        if(n) user.name = n;
+        document.getElementById('current-avatar-display').textContent = user.avatar;
+        document.getElementById('greeting-name').textContent = `Cześć, ${user.name}!`;
+        switchScreen('screen-setup');
+    }
+    
+    function backToSetup() {
+        document.getElementById('modal-report').style.display = 'none';
+        switchScreen('screen-setup');
+    }
+
+    function setDiff(d, btn) {
+        settings.diff = d;
+        document.querySelectorAll('.btn-diff').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+    }
+
+    function showAlert(title, text, icon, onOk) {
+        const m = document.getElementById('modal-alert');
+        document.getElementById('alert-title').textContent = title;
+        document.getElementById('alert-text').textContent = text;
+        document.getElementById('alert-icon').textContent = icon;
+        const btnOk = document.getElementById('alert-ok');
+        const btnCancel = document.getElementById('alert-cancel');
+        
+        const nOk = btnOk.cloneNode(true); const nCancel = btnCancel.cloneNode(true);
+        btnOk.parentNode.replaceChild(nOk, btnOk); btnCancel.parentNode.replaceChild(nCancel, btnCancel);
+        
+        nOk.onclick = () => { m.style.display='none'; if(onOk) onOk(); };
+        
+        if(onOk) {
+            nCancel.style.display='block';
+            nCancel.onclick = () => { m.style.display='none'; };
+        } else {
+            nCancel.style.display='none';
+        }
+        m.style.display = 'flex';
+    }
+
+    function startGame(mode) {
+        settings.mode = mode;
+        settings.timeMin = parseInt(document.getElementById('timer-select').value);
+        
+        gameState = { score: 0, history: [], active: true, combo: 0, level: 1, nextLevelScore: 100 };
+        
+        document.getElementById('modal-report').style.display = 'none';
+        document.getElementById('ingame-rewards').innerHTML = ''; // Czyść półkę
+        
+        switchScreen('screen-game');
+        document.getElementById('game-avatar').textContent = user.avatar;
+        document.getElementById('game-score').textContent = "⭐ 0";
+        updateComboUI();
+        updateRing(0);
+
+        if(settings.timeMin > 0) {
+            gameState.endTime = Date.now() + settings.timeMin * 60000;
+            updateTimer();
+            gameState.timerInterval = setInterval(updateTimer, 1000);
+        } else {
+            document.getElementById('game-timer').textContent = "∞";
+        }
+        nextQuestion();
+    }
+
+    function updateTimer() {
+        const now = Date.now();
+        const r = Math.ceil((gameState.endTime - now)/1000);
+        
+        if(r <= 0) { 
+            document.getElementById('game-timer').textContent = "0:00";
+            if(gameState.active) {
+                gameState.active = false;
+                clearInterval(gameState.timerInterval);
+                // Pokaż okno końca czasu i przejdź do raportu
+                showAlert("KONIEC CZASU!", "Świetna robota! Zobaczmy wyniki.", "⏰", () => endGame(true));
+            }
+            return; 
+        }
+        
+        const m = Math.floor(r/60); 
+        const s = r%60;
+        document.getElementById('game-timer').textContent = `${m}:${s<10?'0'+s:s}`;
+        if(r<=10) document.getElementById('game-timer').style.background='#d63031';
+    }
+
+    function nextQuestion() {
+        if(!gameState.active) return;
+        let mode = settings.mode === 'mix' ? ['add','sub','mul','div'][Math.floor(Math.random()*4)] : settings.mode;
+        let a, b, c, sym, max = settings.diff==='easy'?100:(settings.diff==='medium'?500:1000);
+
+        if(mode==='add'){ a=r(max*0.8); b=r(max-a); c=a+b; sym='+'; }
+        else if(mode==='sub'){ a=r(max)+5; b=r(a); c=a-b; sym='-'; }
+        else if(mode==='mul'){ let l=settings.diff==='easy'?10:(settings.diff==='medium'?20:50); a=r(l); b=r(10); c=a*b; sym='×'; }
+        else { let d=settings.diff==='easy'?10:20; b=r(d-2)+2; c=r(d); a=b*c; sym='÷'; }
+
+        gameState.currentQ = { t:`${a} ${sym} ${b}`, c:c, start:Date.now() };
+        document.getElementById('question-text').textContent = `${a} ${sym} ${b} = ?`;
+        
+        let opts = [c];
+        while(opts.length<4) {
+            let f = c + (Math.random()>0.5?1:-1)*r(10);
+            if(f>=0 && !opts.includes(f)) opts.push(f);
+        }
+        opts.sort(()=>Math.random()-0.5);
+        
+        const area = document.getElementById('options-area'); area.innerHTML='';
+        opts.forEach(o => {
+            const btn = document.createElement('button'); btn.className='btn-option'; btn.textContent=o;
+            btn.onclick = () => answer(btn, o);
+            area.appendChild(btn);
+        });
+    }
+
+    function answer(btn, val) {
+        const q = gameState.currentQ;
+        const ok = val === q.c;
+        document.querySelectorAll('.btn-option').forEach(b=>b.disabled=true);
+        
+        if(ok) {
+            btn.classList.add('correct'); playSound('c'); 
+            gameState.score += 10;
+            gameState.combo++;
+            checkRewards(); // Sprawdź czy jest nagroda za combo
+        } else {
+            btn.classList.add('wrong'); playSound('w');
+            gameState.combo = 0;
+            document.querySelectorAll('.btn-option').forEach(b=>{ if(parseInt(b.textContent)===q.c) b.classList.add('correct') });
+        }
+        
+        document.getElementById('game-score').textContent = `⭐ ${gameState.score}`;
+        updateComboUI();
+        updateRing(gameState.combo);
+
+        gameState.history.push({ text:q.t, u:val, c:q.c, ok:ok, time:(Date.now()-q.start)/1000 });
+        setTimeout(nextQuestion, ok?800:1500);
+    }
+
+    function updateComboUI() {
+        const b = document.getElementById('combo-badge');
+        if(gameState.combo > 1) {
+            b.textContent = `COMBO x${gameState.combo} 🔥`;
+            b.classList.add('visible');
+        } else {
+            b.classList.remove('visible');
+        }
+    }
+
+    function updateRing(c) {
+        const c1 = 377; let p1 = Math.min(c, 10) / 10;
+        document.getElementById('r1-prog').style.strokeDashoffset = c1 - (p1 * c1);
+        const c2 = 471; let p2 = 0; if(c > 10) p2 = Math.min(c-10, 10) / 10;
+        document.getElementById('r2-prog').style.strokeDashoffset = c2 - (p2 * c2);
+        const c3 = 565; let p3 = 0; if(c > 20) p3 = Math.min(c-20, 10) / 10;
+        document.getElementById('r3-prog').style.strokeDashoffset = c3 - (p3 * c3);
+    }
+
+    // --- NOWY SYSTEM NAGRÓD ---
+    function checkRewards() {
+        const c = gameState.combo;
+        // Nagrody co 5 kroków od 10 do 45
+        const standardSteps = [10, 15, 20, 25, 30, 35, 40, 45];
+        
+        if (standardSteps.includes(c)) {
+            addRewardIcon(false);
+            playSound('lvl');
+        } 
+        else if (c === 50) {
+            // Wielka nagroda 50
+            clearShelfAndAddSpecial("👑 50");
+            playSound('lvl');
+            showAlert("NIESAMOWITE!", "50 poprawnych odpowiedzi z rzędu! Jesteś Mistrzem!", "👑", null);
+        }
+        else if (c === 100) {
+            // Wielka nagroda 100
+            addSpecialIcon("💎 100");
+            playSound('lvl');
+            showAlert("LEGENDARNE!", "100 poprawnych odpowiedzi! To niesamowite!", "💎", null);
+        }
+    }
+
+    function addRewardIcon(isSpecial) {
+        const shelf = document.getElementById('ingame-rewards');
+        const icon = document.createElement('span');
+        icon.className = 'shelf-icon';
+        // Losowa nagroda z listy
+        icon.textContent = rewardsList[Math.floor(Math.random() * rewardsList.length)];
+        shelf.appendChild(icon);
+    }
+
+    function clearShelfAndAddSpecial(text) {
+        const shelf = document.getElementById('ingame-rewards');
+        shelf.innerHTML = ''; // Czyścimy
+        addSpecialIcon(text);
+    }
+
+    function addSpecialIcon(text) {
+        const shelf = document.getElementById('ingame-rewards');
+        const icon = document.createElement('span');
+        icon.className = 'shelf-icon special';
+        icon.textContent = text;
+        shelf.appendChild(icon);
+    }
+
+    function confirmExit() {
+        showAlert("Przerwać grę?", "Postępy zostaną zapisane, ale to koniec tej sesji.", "🛑", () => endGame(false));
+    }
+
+    function endGame(timeUp) {
+        gameState.active = false; clearInterval(gameState.timerInterval);
+        
+        // Ukryj ewentualne alerty
+        document.getElementById('modal-alert').style.display = 'none';
+        
+        saveScore();
+        generateReport(null);
+        
+        document.getElementById('modal-report').style.display='flex';
+        document.getElementById('report-live-footer').style.display='block';
+        document.getElementById('report-archive-footer').style.display='none';
+        document.getElementById('archive-badge').style.display='none';
+    }
+
+    function r(n){return Math.floor(Math.random()*n)+1;}
+
+    function saveScore() {
+        if(!gameState.history.length) return;
+        let lb = JSON.parse(localStorage.getItem('mathHeroV15')) || [];
+        lb.push({
+            n:user.name, a:user.avatar, s:gameState.score, d:new Date().toLocaleDateString(),
+            m:settings.mode, diff:settings.diff, t:settings.timeMin, h:gameState.history
+        });
+        lb.sort((a,b)=>b.s-a.s);
+        localStorage.setItem('mathHeroV15', JSON.stringify(lb.slice(0,20)));
+    }
+
+    function showLeaderboard() {
+        const list = document.getElementById('leaderboard-content'); list.innerHTML='';
+        const data = JSON.parse(localStorage.getItem('mathHeroV15')) || [];
+        
+        if(!data.length) {
+            list.innerHTML='<p style="text-align:center">Brak wyników</p>';
+        } else {
+            const table = document.createElement('table');
+            table.className = 'data-table';
+            table.innerHTML = '<tr><th>#</th><th>Gracz</th><th>Tryb</th><th>Wynik</th></tr>';
+            
+            data.forEach((e,i)=>{
+                const row = document.createElement('tr');
+                row.className = 'row-clickable';
+                row.onclick = () => loadArchive(i);
+                row.innerHTML = `
+                    <td>${i+1}</td>
+                    <td><span style="font-size:1.2rem">${e.a}</span> <b>${e.n}</b></td>
+                    <td><small>${getDiffName(e.diff)}<br>${e.t===0?'Trening':e.t+'m'} • ${getModeName(e.m)}</small></td>
+                    <td style="color:var(--primary); font-weight:bold;">${e.s}</td>
+                `;
+                table.appendChild(row);
+            });
+            list.appendChild(table);
+        }
+        document.getElementById('modal-leaderboard').style.display='flex';
+    }
+
+    function loadArchive(i) {
+        const data = JSON.parse(localStorage.getItem('mathHeroV15'))[i];
+        generateReport(data);
+        document.getElementById('modal-leaderboard').style.display='none';
+        document.getElementById('modal-report').style.display='flex';
+        
+        document.getElementById('archive-badge').style.display='inline-block';
+        document.getElementById('report-live-footer').style.display='none';
+        document.getElementById('report-archive-footer').style.display='block';
+    }
+    
+    function closeReport() {
+        document.getElementById('modal-report').style.display='none';
+        if(document.getElementById('archive-badge').style.display !== 'none') {
+            document.getElementById('modal-leaderboard').style.display='flex';
+        }
+    }
+
+    function generateReport(src) {
+        const h = src ? src.h : gameState.history;
+        const s = src ? src.s : gameState.score;
+        const good = h.filter(x=>x.ok).length;
+        document.getElementById('res-xp').textContent = s;
+        document.getElementById('res-good').textContent = good;
+        document.getElementById('res-bad').textContent = h.length - good;
+        document.getElementById('res-acc').textContent = h.length ? Math.round((good/h.length)*100)+'%' : '0%';
+
+        const hd = document.getElementById('tab-history'); hd.innerHTML='';
+        h.forEach(x=>{
+            const d=document.createElement('div'); d.className=`history-item ${x.ok?'h-good':'h-bad'}`;
+            d.innerHTML=`<div><b>${x.text} = ${x.ok?x.u:'<s style="color:red">'+x.u+'</s> '+x.c}</b></div><small>${x.time.toFixed(1)}s</small>`;
+            hd.appendChild(d);
+        });
+        
+        const fill = (id, arr) => {
+            const c = document.getElementById(id); c.innerHTML='';
+            if(!arr.length) c.innerHTML='<small>Brak danych</small>';
+            arr.forEach(x=>{
+                const d=document.createElement('div'); d.className='history-item h-good';
+                d.innerHTML=`<b>${x.text}</b> <small>⚡ ${x.time.toFixed(1)}s</small>`;
+                c.appendChild(d);
+            });
+        };
+        const sorted = [...h].filter(x=>x.ok).sort((a,b)=>a.time-b.time);
+        fill('list-fastest', sorted.slice(0,5));
+        fill('list-slowest', sorted.slice().reverse().slice(0,5));
+        switchTab('summary');
+    }
+
+    function switchTab(t) {
+        ['summary','history','extreme'].forEach(x=>document.getElementById('tab-'+x).style.display = (x===t?'block':'none'));
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        event.target.classList.add('active');
+    }
+
+    function getDiffName(d) { return d==='easy'?'Odkrywca':(d==='medium'?'Podróżnik':'Mistrz'); }
+    function getModeName(m) { if(m=='add') return '+'; if(m=='sub') return '-'; if(m=='mul') return '×'; if(m=='div') return '÷'; return 'Mix'; }
+
+</script>
+</body>
+</html>
