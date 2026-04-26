@@ -83,6 +83,9 @@
 
     /* ---------- Parallax hero (mouse + tilt) ---------- */
     function initHeroParallax() {
+        // Skip on touch devices / no fine pointer — avoids visual artifacts
+        // and pointless work on phones/tablets.
+        if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
         const scene = document.querySelector('.hero-math-scene');
         if (!scene) return;
         let raf = null;

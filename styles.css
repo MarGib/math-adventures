@@ -87,19 +87,30 @@
 
 html,
 body {
-    height: 100%;
     margin: 0;
+    min-height: 100%;
+}
+
+html {
+    height: 100%;
+    height: 100dvh;
 }
 
 body {
     font-family: var(--f-body);
     color: var(--ink);
     background: #f4ecff;
-    overflow: hidden;
+    min-height: 100%;
+    min-height: 100dvh;
     position: relative;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     user-select: none;
+    /* Desktop: lock to viewport for an "app" feel.
+       Small screens override below to allow natural scrolling. */
+    overflow: hidden;
+    height: 100%;
+    height: 100dvh;
 }
 
 button,
@@ -1935,56 +1946,325 @@ select {
 }
 
 /* ============================================================
-   RESPONSIVE
+   RESPONSIVE — comprehensive breakpoints
+   Breakpoints: 1200 (small desktop), 980 (tablet landscape),
+                760 (tablet portrait), 520 (phone), 380 (phone-sm)
    ============================================================ */
-@media (max-width: 900px) {
+
+/* ---------- Small desktop: ensure mode grid stays usable ---------- */
+@media (max-width: 1200px) {
+    .mode-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+}
+
+/* ---------- Tablet landscape: hero stacks, game board still 2-col ---------- */
+@media (max-width: 980px) {
     .hero-panel {
         grid-template-columns: 1fr;
         text-align: center;
+        gap: 16px;
+        min-height: auto;
     }
     .hero-copy {
         text-align: center;
     }
-    .hero-math-scene {
-        height: 180px;
-        min-height: 180px;
-    }
     .hero-topline {
         margin: 0 auto 12px;
     }
+    #quote-box {
+        margin: 0 auto;
+    }
+    .hero-math-scene {
+        height: 200px;
+        min-height: 200px;
+    }
     .setup-grid {
         grid-template-columns: 1fr;
+    }
+    .game-hud {
+        grid-template-columns: 1fr 1fr;
+    }
+    .game-hud .hud-card:first-child {
+        grid-column: 1 / -1;
+    }
+}
+
+/* ---------- Tablet portrait & smaller: switch to scrollable body ---------- */
+@media (max-width: 760px) {
+    /* Allow natural document scroll on small screens — fixes iOS keyboard
+       issues, fixes "input below container" perception, lets users see whole UI. */
+    html, body {
+        overflow: visible !important;
+        height: auto !important;
+        min-height: 100dvh;
+    }
+    .layout-wrapper {
+        height: auto;
+        min-height: 100dvh;
+        overflow: visible;
+        padding: 8px;
+    }
+    .game-container {
+        height: auto;
+        min-height: calc(100dvh - 16px);
+        overflow: visible;
+    }
+    .screen {
+        overflow: visible;
+        flex: 0 0 auto;
+    }
+    .profile-main,
+    .setup-main,
+    .game-main {
+        flex: 0 0 auto;
+        overflow: visible;
+        padding: 6px 4px;
     }
     .game-board {
         grid-template-columns: 1fr;
     }
     .game-hud {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
     }
-    .options-grid {
-        grid-template-columns: 1fr 1fr;
+    .game-hud .hud-card {
+        padding: 10px;
+    }
+    .game-hud .hud-card:first-child { grid-column: auto; }
+    .game-hud .hud-card > div:nth-of-type(1) {
+        font-size: 18px;
+    }
+    .hud-secondary {
+        font-size: 11px;
+    }
+    .hero-math-scene {
+        height: 160px;
+        min-height: 160px;
+    }
+    .hero-copy h1 {
+        font-size: clamp(28px, 6vw, 40px);
+    }
+    .player-badge {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .player-badge .link-btn {
+        align-self: flex-start;
+    }
+    .panel-card {
+        padding: 16px;
+    }
+    .avatar-wrapper {
+        width: 180px;
+        height: 180px;
+    }
+    .modal-card {
+        max-width: 100%;
+        max-height: calc(100dvh - 24px);
+        margin: 12px 0;
     }
 }
 
-@media (max-width: 560px) {
-    .stats-grid {
+/* ---------- Phone ---------- */
+@media (max-width: 520px) {
+    .hero-copy h1 {
+        font-size: 32px;
+    }
+    .hero-subtitle {
+        font-size: 14px;
+    }
+    .hero-math-scene {
+        height: 140px;
+        min-height: 140px;
+    }
+    .math-core {
+        font-size: 80px;
+    }
+    .math-token {
+        width: 44px;
+        height: 44px;
+        font-size: 22px;
+        border-radius: 14px;
+    }
+    .math-formula {
+        font-size: 11px;
+        padding: 4px 10px;
+    }
+    /* Form & avatar */
+    .input-name {
+        font-size: 16px; /* prevents iOS auto-zoom on focus */
+        padding: 12px 14px;
+    }
+    .avatar-grid {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+    }
+    .avatar-option {
+        font-size: 24px;
+        border-radius: 12px;
+    }
+    .player-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 32px;
+        border-radius: 16px;
+    }
+    .player-name-wrap h2 {
+        font-size: 22px;
+    }
+    /* Setup */
+    .diff-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+    .btn-diff {
+        padding: 10px 6px;
+    }
+    .btn-diff strong {
+        font-size: 12px;
+    }
+    .btn-diff small {
+        font-size: 11px;
+    }
+    .diff-icon {
+        font-size: 22px;
+    }
+    .mode-grid {
         grid-template-columns: 1fr;
+    }
+    .btn-mode {
+        padding: 14px;
+    }
+    .mode-title {
+        font-size: 16px;
+    }
+    .mode-subtitle {
+        font-size: 12px;
+    }
+    .select-control {
+        font-size: 16px; /* prevents iOS auto-zoom */
+    }
+    /* Game */
+    .game-hud {
+        grid-template-columns: 1fr 1fr;
+    }
+    .game-hud .hud-card:nth-child(3) {
+        grid-column: 1 / -1;
+    }
+    .question-box {
+        font-size: clamp(28px, 7vw, 38px);
+        padding: 12px 18px;
+    }
+    .avatar-wrapper {
+        width: 150px;
+        height: 150px;
+    }
+    .main-avatar {
+        font-size: 60px;
+    }
+    .options-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    .btn-option {
+        font-size: clamp(24px, 6vw, 32px);
+        min-height: 64px;
+        padding: 12px;
+    }
+    .answers-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .answers-title h3 {
+        font-size: 18px;
+    }
+    /* Modal & buttons */
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+    .stat-card {
+        padding: 12px 10px;
+    }
+    .stat-card b {
+        font-size: 26px;
+    }
+    .modal-header {
+        padding: 18px 18px;
     }
     .modal-header h2 {
         font-size: 22px;
     }
-    .question-box {
-        font-size: 30px;
+    .modal-body {
+        padding: 16px 18px;
+    }
+    .modal-footer {
+        padding: 12px 14px;
+    }
+    .btn-big {
+        font-size: 14px;
+        padding: 12px 18px;
+    }
+    .btn-container-bottom {
+        gap: 8px;
+        padding: 8px;
+    }
+    /* Tab bar — full width, larger hit area */
+    .tab-bar {
+        width: 100%;
+        gap: 4px;
+    }
+    .tab-btn {
+        flex: 1;
+        padding: 10px 8px;
+        font-size: 13px;
+        text-align: center;
+        min-height: 40px;
+    }
+    .mission-strip {
+        grid-template-columns: 1fr;
+    }
+    .info-chip {
+        font-size: 12px;
+    }
+}
+
+/* ---------- Tiny phones (≤380px) ---------- */
+@media (max-width: 380px) {
+    .avatar-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    .hero-math-scene {
+        display: none;
+    }
+    .game-hud {
+        grid-template-columns: 1fr;
+    }
+    .game-hud .hud-card:nth-child(3) {
+        grid-column: auto;
     }
     .options-grid {
         grid-template-columns: 1fr;
     }
-    .diff-grid {
-        grid-template-columns: 1fr;
+}
+
+/* ---------- Touch / no-hover devices: kill parallax artifacts ---------- */
+@media (hover: none) {
+    .hero-math-scene {
+        transform: none !important;
     }
-    .player-badge {
-        flex-direction: column;
-        align-items: flex-start;
+    .hero-math-scene .math-token,
+    .hero-math-scene .math-formula {
+        transform: none !important;
+    }
+    /* Disable hover-only effects */
+    .btn-mode:hover,
+    .btn-option:hover,
+    .panel-card:hover {
+        transform: none;
     }
 }
 
