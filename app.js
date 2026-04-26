@@ -25,6 +25,26 @@
     const confettiColors = ["#0F766E", "#3730A3", "#D97706", "#0EA5E9", "#10B981", "#F59E0B"];
     const mathSymbols = ["+", "−", "×", "÷", "=", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "π", "√", "%"];
 
+    // Math facts shown on profile screen, rotating every 7s.
+    const mathFacts = [
+        "Liczba π ma nieskończenie wiele cyfr po przecinku - dziś znamy ich już ponad 100 bilionów.",
+        "0! (silnia z zera) wynosi 1 - to konwencja, która ratuje wiele wzorów.",
+        "Suma kątów w każdym trójkącie wynosi dokładnie 180°.",
+        "Liczba 1 nie jest liczbą pierwszą, choć dzieli się tylko przez siebie.",
+        "Dzielenie przez zero jest niezdefiniowane - matematyka po prostu się buntuje.",
+        "Każda liczba podniesiona do potęgi 0 daje 1. Nawet π⁰ = 1.",
+        "Najmniejsza liczba pierwsza to 2 - i jednocześnie jedyna parzysta.",
+        "Suma cyfr każdej wielokrotności 9 jest podzielna przez 9 (np. 27 → 2+7=9).",
+        "Liczba ujemna razy ujemna daje dodatnią - dwa minusy znoszą się.",
+        "Liczba Eulera e ≈ 2,71828 jest podstawą wzrostu wykładniczego.",
+        "Złoty podział φ ≈ 1,618 pojawia się w sztuce, naturze i architekturze.",
+        "Mnożenie to skrócone dodawanie. Potęgowanie to skrócone mnożenie.",
+        "100 to liczba kwadratowa: 10 × 10 = 100. A 1000 to sześcian: 10³.",
+        "Liczby pierwsze są nieskończone - udowodnił to Euklides 2300 lat temu.",
+        "Twierdzenie Pitagorasa: w trójkącie prostokątnym a² + b² = c².",
+        "Cyfry 142857 to 'magiczna' liczba - mnożenie ×2 daje 285714, ×3 daje 428571."
+    ];
+
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     const audioCtx = AudioContextCtor ? new AudioContextCtor() : null;
 
@@ -290,6 +310,8 @@
         // Toggle body class so CSS can lock viewport during gameplay
         // (especially on mobile where we want a no-scroll, 100dvh layout).
         document.body.classList.toggle('game-active', id === 'screen-game');
+        // Refresh Top-3 list whenever user returns to profile (could be after a game).
+        if (id === 'screen-profile') renderProfileTopList();
     }
 
     function goToSetup() {
@@ -884,6 +906,49 @@
         }, 4000);
     }
 
+    /* ---------- Profile extras: Top-3 mini-leaderboard + math facts rotation ---------- */
+    function renderProfileTopList() {
+        const list = document.getElementById('profile-top-list');
+        if (!list) return;
+        const data = loadLeaderboardData();
+        if (!data.length) {
+            list.innerHTML = '<li class="top-empty">Zagraj pierwszą misję, aby zobaczyć wyniki!</li>';
+            return;
+        }
+        list.innerHTML = '';
+        data.slice(0, 3).forEach((entry, i) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="top-rank">#${i + 1}</span>
+                <span class="top-name">
+                    <span class="top-avatar">${escapeHtml(entry.a)}</span>${escapeHtml(entry.n)}
+                    <span class="top-meta">${getDiffName(entry.diff)} · ${getModeLabel(entry.m)}</span>
+                </span>
+                <span class="top-score">${entry.s}</span>
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    function startFactRotation() {
+        let fIdx = Math.floor(Math.random() * mathFacts.length);
+        const factEl = document.getElementById('math-fact');
+        const counterEl = document.getElementById('fact-counter');
+        if (!factEl) return;
+        const updateFact = () => {
+            factEl.style.animation = 'none';
+            void factEl.offsetWidth;
+            factEl.style.animation = '';
+            factEl.textContent = mathFacts[fIdx];
+            if (counterEl) counterEl.textContent = `${fIdx + 1} / ${mathFacts.length}`;
+        };
+        updateFact();
+        setInterval(() => {
+            fIdx = (fIdx + 1) % mathFacts.length;
+            updateFact();
+        }, 7000);
+    }
+
     function init() {
         switchScreen('screen-profile');
         initBackgroundSymbols();
@@ -892,6 +957,8 @@
         bindAvatarPicker();
         bindClickHandlers();
         startQuoteRotation();
+        renderProfileTopList();
+        startFactRotation();
     }
 
     if (document.readyState === 'loading') {
