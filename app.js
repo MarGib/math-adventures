@@ -287,6 +287,9 @@
                 el.classList.remove('is-active');
             }
         });
+        // Toggle body class so CSS can lock viewport during gameplay
+        // (especially on mobile where we want a no-scroll, 100dvh layout).
+        document.body.classList.toggle('game-active', id === 'screen-game');
     }
 
     function goToSetup() {

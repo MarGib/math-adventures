@@ -1600,11 +1600,22 @@ select {
     width: 100%;
     max-width: 640px;
     max-height: 90vh;
+    max-height: 90dvh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     box-shadow: var(--shadow-xl);
     animation: modalIn 0.45s var(--ease-spring) both;
+    min-height: 0;
+}
+
+/* Header MUST keep its content size (so tab bar never gets clipped),
+   body MUST be the flexible scrollable region. */
+.modal-card > .modal-header {
+    flex: 0 0 auto;
+}
+.modal-card > .modal-footer {
+    flex: 0 0 auto;
 }
 
 @keyframes modalIn {
@@ -1658,6 +1669,13 @@ select {
 .modal-body {
     padding: 22px 26px;
     overflow-y: auto;
+    /* CRITICAL: flex:1 + min-height:0 are needed for the body to actually
+       scroll INTERNALLY when content exceeds available space. Without this,
+       the body content pushes the modal-header out of the visible area
+       (clipping the tab bar). */
+    flex: 1 1 auto;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
 }
 
 .modal-footer {
@@ -2312,6 +2330,165 @@ select {
     }
     .options-grid {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================================
+   GAME-ACTIVE: kompaktowy, viewport-locked layout dla mobile
+   ============================================================ */
+@media (max-width: 760px) {
+    /* Override the "body scrolls" rule when game is in progress —
+       the game screen stays inside 100dvh and elements are sized
+       to fit without scrolling. */
+    body.game-active,
+    body.game-active html {
+        overflow: hidden !important;
+        height: 100dvh !important;
+    }
+    body.game-active .layout-wrapper {
+        height: 100dvh;
+        overflow: hidden;
+        padding: 4px;
+    }
+    body.game-active .game-container {
+        height: 100%;
+        max-height: 100dvh;
+        overflow: hidden;
+    }
+    body.game-active #screen-game.is-active {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        overflow: hidden;
+    }
+    body.game-active .game-main {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px;
+    }
+
+    /* Compact HUD: 3 metrics in single tight row, no big labels */
+    body.game-active .game-hud {
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 6px;
+        flex: 0 0 auto;
+    }
+    body.game-active .game-hud .hud-card {
+        padding: 6px 8px;
+        gap: 0;
+    }
+    body.game-active .game-hud .hud-card:first-child,
+    body.game-active .game-hud .hud-card:nth-child(3) {
+        grid-column: auto;
+    }
+    body.game-active .game-hud .hud-label {
+        font-size: 9px;
+        letter-spacing: 1px;
+    }
+    body.game-active .game-hud .hud-card > div:nth-of-type(1) {
+        font-size: 16px;
+        line-height: 1.1;
+    }
+    body.game-active .game-hud .hud-secondary {
+        display: none;
+    }
+
+    /* Compact stage: tight padding, smaller avatar, no progress pill */
+    body.game-active .game-board {
+        flex: 1 1 auto;
+        min-height: 0;
+        gap: 8px;
+        display: flex;
+        flex-direction: column;
+    }
+    body.game-active .stage-card {
+        padding: 10px;
+        gap: 6px;
+        flex: 0 0 auto;
+    }
+    body.game-active .rewards-shelf {
+        min-height: 0;
+        max-height: 28px;
+        overflow: hidden;
+    }
+    body.game-active .avatar-wrapper {
+        width: 110px;
+        height: 110px;
+    }
+    body.game-active .main-avatar {
+        font-size: 50px;
+    }
+    body.game-active .question-box {
+        font-size: clamp(26px, 7vw, 36px);
+        padding: 10px 18px;
+    }
+    body.game-active .progress-meta {
+        display: none;
+    }
+
+    /* Compact answers card: minimal header */
+    body.game-active .answers-card {
+        flex: 1 1 auto;
+        min-height: 0;
+        padding: 10px;
+        gap: 8px;
+        display: flex;
+        flex-direction: column;
+    }
+    body.game-active .answers-title {
+        display: none;
+    }
+    body.game-active .answers-header {
+        flex: 0 0 auto;
+        justify-content: flex-end;
+        gap: 0;
+        min-height: 28px;
+    }
+    body.game-active #combo-badge {
+        font-size: 12px;
+        padding: 5px 12px;
+    }
+    body.game-active .options-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+    body.game-active .btn-option {
+        font-size: clamp(22px, 5.6vw, 30px);
+        min-height: 0;
+        padding: 8px;
+    }
+    body.game-active .btn-container-bottom {
+        padding: 4px;
+        gap: 6px;
+        flex: 0 0 auto;
+    }
+    body.game-active .btn-container-bottom .btn-big {
+        padding: 9px 18px;
+        font-size: 13px;
+    }
+}
+
+/* On very tall phones, give the question a bit more room */
+@media (max-width: 520px) and (min-height: 750px) {
+    body.game-active .avatar-wrapper {
+        width: 130px;
+        height: 130px;
+    }
+    body.game-active .main-avatar {
+        font-size: 60px;
+    }
+}
+
+/* On short phones (<700px) hide the avatar entirely to save space */
+@media (max-width: 760px) and (max-height: 700px) {
+    body.game-active .avatar-wrapper {
+        display: none;
     }
 }
 
