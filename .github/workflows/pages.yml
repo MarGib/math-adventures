@@ -1,0 +1,72 @@
+name: Deploy to GitHub Pages (with cache-bust)
+
+# Triggers automatic deployment on every push to main, plus a manual button.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Permissions required for the official Pages deploy action.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, but don't cancel in-progress runs
+# (we want the latest commit to fully deploy).
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build site with cache-busting hashes
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+
+          # Copy everything except internal/dev folders into the deploy dir.
+          rsync -a \
+            --exclude='_site' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules' \
+            ./ _site/
+
+          # Compute short content hashes for the assets we want to cache-bust.
+          CSS_HASH=$(sha256sum _site/styles.css | head -c 8)
+          JS_HASH=$(sha256sum _site/app.js | head -c 8)
+          echo "styles.css hash: ${CSS_HASH}"
+          echo "app.js     hash: ${JS_HASH}"
+
+          # Rewrite the references inside index.html with versioned query
+          # strings. New hash on every content change → browser bypasses cache.
+          sed -i "s|href=\"styles.css\"|href=\"styles.css?v=${CSS_HASH}\"|g" _site/index.html
+          sed -i "s|src=\"app.js\"|src=\"app.js?v=${JS_HASH}\"|g"           _site/index.html
+
+          echo "--- Verification (first 60 lines of rewritten index.html) ---"
+          head -60 _site/index.html | grep -E 'styles\.css|app\.js' || true
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
