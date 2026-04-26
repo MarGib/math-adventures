@@ -894,16 +894,22 @@
     }
 
     function startQuoteRotation() {
-        let qIdx = 0;
+        // Mix motivational quotes with math facts. Facts get a "💡 " prefix
+        // so user can tell them apart from short cheers.
+        const mixed = [
+            ...quotes,
+            ...mathFacts.map(f => `💡 ${f}`)
+        ];
+        let qIdx = Math.floor(Math.random() * quotes.length); // start from a quote
         setInterval(() => {
-            qIdx = (qIdx + 1) % quotes.length;
+            qIdx = (qIdx + 1) % mixed.length;
             const el = document.getElementById("quote-display");
             if (!el) return;
             el.style.animation = 'none';
             void el.offsetWidth;
             el.style.animation = '';
-            el.textContent = quotes[qIdx];
-        }, 4000);
+            el.textContent = mixed[qIdx];
+        }, 5500);
     }
 
     /* ---------- Profile extras: Top-3 mini-leaderboard + math facts rotation ---------- */
@@ -958,7 +964,6 @@
         bindClickHandlers();
         startQuoteRotation();
         renderProfileTopList();
-        startFactRotation();
     }
 
     if (document.readyState === 'loading') {

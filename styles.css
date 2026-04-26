@@ -707,7 +707,7 @@ select {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
     gap: 10px;
-    max-width: 520px;
+    max-width: 480px;
     margin: 0 auto;
     width: 100%;
 }
@@ -717,7 +717,8 @@ select {
     background: var(--surface-strong);
     border: 1.5px solid var(--border-strong);
     border-radius: 12px;
-    font-size: 28px;
+    /* Skaluje sie z rozmiarem komorki - emoji wypelnia ~55-65% kwadratu. */
+    font-size: clamp(30px, 4.6vmin, 64px);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -725,6 +726,7 @@ select {
     box-shadow: var(--shadow-sm);
     transition: transform 0.25s var(--ease-spring), border-color 0.2s ease, box-shadow 0.25s ease;
     position: relative;
+    line-height: 1;
 }
 
 .avatar-option:hover {
@@ -2626,8 +2628,8 @@ select {
 
     /* Profile form */
     .input-name { padding: 10px 14px; font-size: 16px; }
-    .avatar-grid { gap: 6px; }
-    .avatar-option { font-size: 22px; border-radius: 10px; }
+    .avatar-grid { gap: 6px; max-width: 420px; }
+    .avatar-option { font-size: clamp(28px, 4.2vmin, 52px); border-radius: 10px; }
 
     /* Player summary */
     .player-avatar { width: 56px; height: 56px; font-size: 30px; border-radius: 14px; }
