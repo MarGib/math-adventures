@@ -854,6 +854,18 @@
                         document.getElementById('modal-leaderboard').style.display = 'none';
                         break;
                     case 'closeReport': closeReport(); break;
+                    case 'closeReportSmart': {
+                        // Archive view (came from leaderboard) -> back to leaderboard.
+                        // Live view (just finished a game) -> close & go to setup.
+                        const archiveBadge = document.getElementById('archive-badge');
+                        const isArchive = archiveBadge && archiveBadge.style.display !== 'none';
+                        if (isArchive) {
+                            closeReport();
+                        } else {
+                            backToSetup();
+                        }
+                        break;
+                    }
                 }
             });
         });

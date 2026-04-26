@@ -1637,8 +1637,45 @@ select {
     background: linear-gradient(135deg, var(--c-teal) 0%, var(--c-teal-dark) 50%, var(--c-indigo) 100%);
     color: white;
     padding: 22px 26px;
+    padding-right: 64px; /* leave room for close button */
     position: relative;
     overflow: hidden;
+}
+
+/* Close button (X) — top-right of modal header */
+.modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    color: white;
+    font-size: 24px;
+    line-height: 1;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: background 0.2s ease, transform 0.2s var(--ease-spring), border-color 0.2s ease;
+    z-index: 10;
+    padding: 0;
+    font-family: var(--f-display);
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.32);
+    border-color: rgba(255, 255, 255, 0.55);
+    transform: scale(1.10) rotate(90deg);
+}
+
+.modal-close:active {
+    transform: scale(0.94) rotate(90deg);
 }
 
 .modal-header::after {
