@@ -399,7 +399,17 @@ select {
     flex-direction: column;
     gap: clamp(14px, 1.6vw, 20px);
     scrollbar-width: thin;
-    scrollbar-color: rgba(124, 58, 237, 0.4) transparent;
+    scrollbar-color: rgba(15, 118, 110, 0.4) transparent;
+}
+
+/* Children of these scrollable flex columns must NOT shrink — otherwise on
+   short viewports cards get squeezed and clipped (e.g. mission-strip chips
+   getting cut off by .panel-card { overflow: hidden }). Container has
+   overflow-y:auto so it scrolls naturally instead. */
+.profile-main > *,
+.setup-main > *,
+.game-main > * {
+    flex-shrink: 0;
 }
 
 .profile-main::-webkit-scrollbar,
