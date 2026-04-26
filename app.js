@@ -22,7 +22,7 @@
     const storageKey = "mathHeroV16";
     const legacyStorageKey = "mathHeroV15";
 
-    const confettiColors = ["#7C3AED", "#EC4899", "#F59E0B", "#06B6D4", "#10B981", "#FBBF24"];
+    const confettiColors = ["#0F766E", "#3730A3", "#D97706", "#0EA5E9", "#10B981", "#F59E0B"];
     const mathSymbols = ["+", "−", "×", "÷", "=", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "π", "√", "%"];
 
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
