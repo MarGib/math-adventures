@@ -23,6 +23,118 @@
     const legacyStorageKey = "mathHeroV15";
     const lastUserKey = "mathHeroLastUser";
 
+    /* ============================================================
+       SUPABASE — opcjonalna chmurowa synchronizacja
+       Aplikacja w pelni dziala bez Supabase (offline only). Jezeli
+       config.js dostarcza klucze i ENABLE_CLOUD=true, dodatkowo
+       zapisujemy wyniki do bazy i pokazujemy globalny leaderboard.
+       ============================================================ */
+    const cloudConfig = (window.MATH_ADV_CONFIG || {});
+    const CLOUD_ENABLED = !!(cloudConfig.ENABLE_CLOUD &&
+        cloudConfig.SUPABASE_URL && cloudConfig.SUPABASE_ANON_KEY &&
+        window.supabase);
+
+    let sb = null;            // klient Supabase
+    let cloudUser = null;     // { id, username, avatar }
+    let cloudReady = false;   // true gdy uda sie auth + profile load
+
+    async function initCloud() {
+        if (!CLOUD_ENABLED) return;
+        try {
+            sb = window.supabase.createClient(
+                cloudConfig.SUPABASE_URL,
+                cloudConfig.SUPABASE_ANON_KEY,
+                { auth: { persistSession: true, autoRefreshToken: true } }
+            );
+
+            // Spróbuj pobrać aktualną sesję, jeśli nie ma — zaloguj anonimowo
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) {
+                const { data, error } = await sb.auth.signInAnonymously();
+                if (error) throw error;
+            }
+            const { data: { user: authUser } } = await sb.auth.getUser();
+            if (!authUser) return;
+
+            // Spróbuj wczytać profil
+            const { data: profile } = await sb
+                .from('profiles')
+                .select('id, username, avatar, display_name')
+                .eq('id', authUser.id)
+                .maybeSingle();
+
+            cloudUser = { id: authUser.id, profile };
+            cloudReady = true;
+        } catch (e) {
+            console.warn('[cloud] init failed, going offline-only:', e && e.message);
+            cloudReady = false;
+        }
+    }
+
+    /** Próbuje zarezerwować nazwę gracza w chmurze. Zwraca true/false. */
+    async function cloudClaimUsername(username, avatar) {
+        if (!cloudReady) return false;
+        try {
+            const { data, error } = await sb.rpc('claim_username', {
+                p_username: username,
+                p_avatar: avatar,
+                p_display_name: username
+            });
+            if (error) throw error;
+            if (data === true) {
+                cloudUser.profile = { username, avatar, display_name: username };
+                return true;
+            }
+            return false;
+        } catch (e) {
+            console.warn('[cloud] claim failed:', e && e.message);
+            return false;
+        }
+    }
+
+    async function cloudSaveResult(result) {
+        if (!cloudReady || !cloudUser || !cloudUser.profile) return;
+        try {
+            const correct = result.history.filter(h => h.ok).length;
+            const wrong = result.history.length - correct;
+            const maxCombo = (() => {
+                let m = 0, c = 0;
+                for (const h of result.history) {
+                    if (h.ok) { c++; if (c > m) m = c; } else c = 0;
+                }
+                return m;
+            })();
+            await sb.from('game_results').insert({
+                user_id: cloudUser.id,
+                score: result.score,
+                mode: result.mode,
+                difficulty: result.difficulty,
+                duration_minutes: result.timeMin,
+                correct_count: correct,
+                wrong_count: wrong,
+                max_combo: maxCombo,
+                history: result.history
+            });
+        } catch (e) {
+            console.warn('[cloud] save failed:', e && e.message);
+        }
+    }
+
+    async function cloudFetchGlobalTop(limit) {
+        if (!cloudReady) return [];
+        try {
+            const { data, error } = await sb
+                .from('leaderboard_global')
+                .select('*')
+                .limit(limit || 20);
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.warn('[cloud] fetch top failed:', e && e.message);
+            return [];
+        }
+    }
+
     const confettiColors = ["#0F766E", "#3730A3", "#D97706", "#0EA5E9", "#10B981", "#F59E0B"];
     const mathSymbols = ["+", "−", "×", "÷", "=", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "π", "√", "%"];
 
@@ -755,6 +867,22 @@
         document.getElementById("current-avatar-display").textContent = user.avatar;
         document.getElementById("greeting-name").textContent = `Cześć, ${user.name}!`;
         switchScreen("screen-setup");
+
+        // Asynchronicznie probuje zarezerwowac username w chmurze.
+        // Nie blokujemy UX — gracz juz przeszedl do setupu. Jezeli zajete,
+        // pokazemy alert ale gra dziala dalej offline.
+        if (cloudReady && user.name && user.name !== 'Gracz') {
+            cloudClaimUsername(user.name, user.avatar).then((ok) => {
+                if (!ok) {
+                    showAlert(
+                        'Nazwa zajęta',
+                        `Nazwa "${user.name}" jest już używana w globalnym rankingu. Twoje wyniki zapiszą się lokalnie. Wróć do profilu i wybierz inną nazwę aby trafiać też do rankingu globalnego.`,
+                        '⚠️',
+                        null
+                    );
+                }
+            });
+        }
     }
 
     function backToSetup() {
@@ -1253,6 +1381,16 @@
 
         leaderboard.sort((x, y) => y.s - x.s);
         persistLeaderboardData(leaderboard.slice(0, 20));
+
+        // Najwazniejszy moment dla cloud-sync: zapisz wynik do bazy
+        // (asynchronicznie, nie blokuje wyswietlenia raportu)
+        cloudSaveResult({
+            score: gameState.score,
+            mode: settings.mode,
+            difficulty: settings.diff,
+            timeMin: settings.timeMin,
+            history: gameState.history
+        });
     }
 
     function showLeaderboard() {
@@ -1517,6 +1655,11 @@
         renderProfileTopList();
         renderWelcomeBack();
         installAudioUnlockGestureHooks();
+        // Asynchroniczna inicjalizacja chmury — gra startuje natychmiast,
+        // chmura jest "best effort". Jezeli sie powiedzie — bonus features.
+        initCloud().then(() => {
+            if (cloudReady) console.info('[cloud] connected as', cloudUser && cloudUser.id);
+        });
     }
 
     if (document.readyState === 'loading') {

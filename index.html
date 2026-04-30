@@ -539,6 +539,11 @@
     <audio id="snd-w" preload="auto" playsinline webkit-playsinline></audio>
     <audio id="snd-lvl" preload="auto" playsinline webkit-playsinline></audio>
 
+    <!-- Supabase config (z GitHub Secrets w prod, lokalnie z config.js).
+         Aplikacja dziala bez configu — wtedy 100% offline z localStorage. -->
+    <script src="config.js"></script>
+    <!-- Supabase JS client (umd build, dziala z file:// i bez bundlera) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <script src="app.js" defer></script>
 </body>
 </html>

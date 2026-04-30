@@ -26,6 +26,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build site with cache-busting hashes
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           set -euo pipefail
           mkdir -p _site
@@ -36,21 +39,47 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules' \
+            --exclude='supabase' \
+            --exclude='config.example.js' \
+            --exclude='config.js' \
             ./ _site/
+
+          # ----- Generate config.js from GitHub Secrets -----
+          # Anon key is public-by-design (RLS protects data), but we keep it
+          # out of the repo so it's easier to rotate / scope per environment.
+          if [ -n "${SUPABASE_URL:-}" ] && [ -n "${SUPABASE_ANON_KEY:-}" ]; then
+              cat > _site/config.js <<EOF
+          window.MATH_ADV_CONFIG = {
+              SUPABASE_URL: "${SUPABASE_URL}",
+              SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}",
+              ENABLE_CLOUD: true,
+              GLOBAL_LEADERBOARD: true,
+          };
+          EOF
+              echo "config.js generated from secrets ($(wc -c < _site/config.js) bytes)"
+          else
+              echo "WARNING: SUPABASE_URL or SUPABASE_ANON_KEY not set — site will run in offline-only mode"
+              cat > _site/config.js <<'EOF'
+          window.MATH_ADV_CONFIG = { ENABLE_CLOUD: false };
+          EOF
+          fi
 
           # Compute short content hashes for the assets we want to cache-bust.
           CSS_HASH=$(sha256sum _site/styles.css | head -c 8)
           JS_HASH=$(sha256sum _site/app.js | head -c 8)
+          CFG_HASH=$(sha256sum _site/config.js | head -c 8)
           echo "styles.css hash: ${CSS_HASH}"
           echo "app.js     hash: ${JS_HASH}"
+          echo "config.js  hash: ${CFG_HASH}"
 
           # Rewrite the references inside index.html with versioned query
           # strings. New hash on every content change → browser bypasses cache.
           sed -i "s|href=\"styles.css\"|href=\"styles.css?v=${CSS_HASH}\"|g" _site/index.html
           sed -i "s|src=\"app.js\"|src=\"app.js?v=${JS_HASH}\"|g"           _site/index.html
+          sed -i "s|src=\"config.js\"|src=\"config.js?v=${CFG_HASH}\"|g"    _site/index.html
 
-          echo "--- Verification (first 60 lines of rewritten index.html) ---"
-          head -60 _site/index.html | grep -E 'styles\.css|app\.js' || true
+          echo "--- Verification (first 80 lines of rewritten index.html) ---"
+          head -80 _site/index.html | grep -E 'styles\.css|app\.js|config\.js' || true
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

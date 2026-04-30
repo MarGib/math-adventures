@@ -1,0 +1,10 @@
+# Lokalna konfiguracja Supabase — nigdy nie commituj
+# (klucz anon jest publiczny, ale wolimy nie hardcodowac
+#  go w repo zeby ulatwic rotacje)
+config.js
+
+# Build artefakty / temp
+_site/
+node_modules/
+.DS_Store
+*.log
