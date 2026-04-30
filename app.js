@@ -235,42 +235,102 @@
     }
 
     /* ============================================================
-       AUDIO
-       ============================================================ */
+       AUDIO — z poprawnym iOS WebKit unlock
+       ============================================================
+       Problem na iOS: AudioContext startuje w stanie 'suspended',
+       resume() dziala TYLKO z handlera user-gesture, oraz oscillator
+       musi byc tworzony PO zakonczeniu resume() (nie synchronicznie).
+       Dodatkowo iOS potrzebuje "warm-up" silent buffer aby w pelni
+       odblokowac audio. Bez tego dzwieki nie graja w Safari/Vivaldi
+       /Chrome na iPhone (wszystkie uzywaja WebKit). */
+    let audioUnlocked = false;
+    let audioUnlockPromise = null;
+
+    function unlockAudio() {
+        if (!audioCtx) return Promise.resolve();
+        if (audioUnlocked) return Promise.resolve();
+        if (audioUnlockPromise) return audioUnlockPromise;
+
+        const doUnlock = () => {
+            // Silent 1-sample buffer — iOS wymaga zeby "rozgrzac" context.
+            try {
+                const buffer = audioCtx.createBuffer(1, 1, 22050);
+                const source = audioCtx.createBufferSource();
+                source.buffer = buffer;
+                source.connect(audioCtx.destination);
+                source.start(0);
+            } catch (_) { /* ignore */ }
+            audioUnlocked = true;
+        };
+
+        if (audioCtx.state === 'suspended') {
+            audioUnlockPromise = audioCtx.resume().then(doUnlock).catch(() => {});
+        } else {
+            doUnlock();
+            audioUnlockPromise = Promise.resolve();
+        }
+        return audioUnlockPromise;
+    }
+
+    /** Attach unlock to first user gesture — niezawodna metoda na iOS. */
+    function installAudioUnlockGestureHooks() {
+        if (!audioCtx) return;
+        const events = ['touchstart', 'touchend', 'mousedown', 'click', 'keydown'];
+        const handler = () => {
+            unlockAudio();
+            // Po pierwszym sukcesie odpinamy listenery zeby nie marnowac CPU.
+            if (audioUnlocked) {
+                events.forEach(evt => document.removeEventListener(evt, handler));
+            }
+        };
+        events.forEach(evt => document.addEventListener(evt, handler, { passive: true }));
+    }
+
     function playSound(type) {
         if (!audioCtx) return;
-        if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
 
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        const now = audioCtx.currentTime;
+        const doPlay = () => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
 
-        if (type === "c") {
-            osc.frequency.setValueAtTime(500, now);
-            osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
-            gain.gain.setValueAtTime(0.22, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-            osc.start();
-            osc.stop(now + 0.25);
-        } else if (type === "w") {
-            osc.type = "sawtooth";
-            osc.frequency.setValueAtTime(150, now);
-            osc.frequency.linearRampToValueAtTime(100, now + 0.25);
-            gain.gain.setValueAtTime(0.18, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-            osc.start();
-            osc.stop(now + 0.25);
-        } else if (type === "lvl") {
-            osc.type = "triangle";
-            osc.frequency.setValueAtTime(420, now);
-            osc.frequency.setValueAtTime(620, now + 0.1);
-            osc.frequency.setValueAtTime(840, now + 0.2);
-            gain.gain.setValueAtTime(0.18, now);
-            gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
-            osc.start();
-            osc.stop(now + 0.45);
+            if (type === "c") {
+                osc.frequency.setValueAtTime(500, now);
+                osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.start();
+                osc.stop(now + 0.25);
+            } else if (type === "w") {
+                osc.type = "sawtooth";
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.25);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.start();
+                osc.stop(now + 0.25);
+            } else if (type === "lvl") {
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(420, now);
+                osc.frequency.setValueAtTime(620, now + 0.1);
+                osc.frequency.setValueAtTime(840, now + 0.2);
+                gain.gain.setValueAtTime(0.18, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+                osc.start();
+                osc.stop(now + 0.45);
+            }
+        };
+
+        // CRITICAL na iOS: jezeli context jeszcze suspended, najpierw resume,
+        // PO zakonczeniu twórz oscillator. Synchroniczne wywolanie nie zagra.
+        if (audioCtx.state === 'suspended') {
+            unlockAudio().then(() => {
+                if (audioCtx.state === 'running') doPlay();
+            });
+        } else {
+            doPlay();
         }
     }
 
@@ -1158,6 +1218,7 @@
         startQuoteRotation();
         renderProfileTopList();
         renderWelcomeBack();
+        installAudioUnlockGestureHooks();
     }
 
     if (document.readyState === 'loading') {
