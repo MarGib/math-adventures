@@ -323,17 +323,23 @@
     let html5Audios = null;
     function getHtml5Audio(type) {
         if (!html5Audios) {
-            html5Audios = {
-                c: new Audio(buildSoundDataUri('c')),
-                w: new Audio(buildSoundDataUri('w')),
-                lvl: new Audio(buildSoundDataUri('lvl')),
-            };
+            // Preferuj STATIC <audio> tagi z HTML — iOS lepiej je obsluguje
+            // niz dynamicznie tworzone przez new Audio().
+            const tagId = 'snd-' + type;
+            const staticEl = document.getElementById(tagId);
+            html5Audios = { c: null, w: null, lvl: null };
             ['c','w','lvl'].forEach(k => {
-                const a = html5Audios[k];
-                a.preload = 'auto';
-                a.playsInline = true;
-                a.volume = 0.85;
-                try { a.load(); } catch(_) {}
+                const id = 'snd-' + k;
+                let el = document.getElementById(id);
+                if (!el) el = new Audio();
+                el.src = buildSoundDataUri(k);
+                el.preload = 'auto';
+                el.playsInline = true;
+                el.setAttribute('playsinline', '');
+                el.setAttribute('webkit-playsinline', '');
+                el.volume = 0.95;
+                try { el.load(); } catch(_) {}
+                html5Audios[k] = el;
             });
         }
         return html5Audios[type];
@@ -428,22 +434,125 @@
         el.classList.add(ok ? 'audio-good' : 'audio-bad');
     }
 
-    /** Glowny entry. Probuje WebAudio, fallback HTML5 jezeli nie wyszlo. */
+    function isIOSDevice() {
+        const ua = navigator.userAgent || '';
+        return /iPad|iPhone|iPod/.test(ua) ||
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    }
+
+    function getAudioDiagnostics() {
+        const lines = [];
+        lines.push('AudioContext: ' + (AudioContextCtor ? 'dostępny' : 'BRAK'));
+        lines.push('Stan kontekstu: ' + (audioCtx ? audioCtx.state : 'nie utworzono'));
+        lines.push('Sample rate: ' + (audioCtx ? audioCtx.sampleRate + ' Hz' : '—'));
+        lines.push('Bufory PCM: ' + (audioBuffers ? Object.keys(audioBuffers).length + ' / 3' : '0 / 3'));
+        lines.push('HTML5 Audio: ' + (html5Audios ? 'OK' : 'nie zainicjalizowano'));
+        lines.push('Platforma: ' + (isIOSDevice() ? 'iOS (sprawdź silent switch!)' : navigator.platform));
+        lines.push('User-Agent: ' + (navigator.userAgent || '?').substring(0, 80));
+        return lines.join('\n');
+    }
+
+    /* ---- Settings modal handlers ---- */
+    function showSettings() {
+        const modal = document.getElementById('modal-settings');
+        if (!modal) return;
+        // Pokaz iOS hint tylko na iOS
+        const hint = document.getElementById('ios-audio-hint');
+        if (hint) hint.style.display = isIOSDevice() ? 'block' : 'none';
+        // Wyczysc statusy
+        const audioStatus = document.getElementById('settings-audio-status');
+        const clearStatus = document.getElementById('settings-clear-status');
+        if (audioStatus) {
+            audioStatus.textContent = 'Naciśnij przycisk aby przetestować';
+            audioStatus.classList.remove('is-good', 'is-bad');
+        }
+        if (clearStatus) clearStatus.textContent = '';
+        modal.style.display = 'flex';
+    }
+
+    function closeSettings() {
+        const modal = document.getElementById('modal-settings');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function settingsTestSound() {
+        const status = document.getElementById('settings-audio-status');
+        const diag = document.getElementById('audio-diag');
+        if (status) {
+            status.textContent = 'Testowanie...';
+            status.classList.remove('is-good', 'is-bad');
+        }
+        playSound('c');
+        // Po krotkim opoznieniu odczytaj wynik z indicator
+        setTimeout(() => {
+            const ind = document.getElementById('audio-indicator');
+            const isGood = ind && ind.classList.contains('audio-good');
+            if (status) {
+                if (isGood) {
+                    status.textContent = '✓ Audio gotowe (jeśli nie słyszysz — sprawdź silent switch)';
+                    status.classList.add('is-good');
+                } else {
+                    status.textContent = '⚠ Audio zablokowane — szczegóły poniżej';
+                    status.classList.add('is-bad');
+                }
+            }
+            if (diag) {
+                diag.textContent = getAudioDiagnostics();
+                diag.classList.add('is-shown');
+            }
+        }, 200);
+    }
+
+    function settingsClearData() {
+        const status = document.getElementById('settings-clear-status');
+        if (!confirm('Na pewno usunąć wszystkie wyniki i zapamiętany profil?')) return;
+        try {
+            localStorage.removeItem(storageKey);
+            localStorage.removeItem(legacyStorageKey);
+            localStorage.removeItem(lastUserKey);
+            if (status) {
+                status.textContent = '✓ Wszystkie dane usunięte';
+                status.classList.add('is-good');
+            }
+            // Refresh affected widgets
+            renderProfileTopList();
+            renderWelcomeBack();
+        } catch (e) {
+            if (status) {
+                status.textContent = '⚠ Błąd: ' + (e.message || 'nie można wyczyścić');
+                status.classList.add('is-bad');
+            }
+        }
+    }
+
+    /** Glowny entry. Strategia:
+        - Na iOS: graj OBYDWA (WebAudio + HTML5) — daje 2x wieksza szanse
+          ze cos zagra. iOS bywa kapryśne i czasem jedna metoda zadziala
+          a druga nie.
+        - Na desktop / Android: tylko WebAudio (najczystszy dzwiek). */
     function playSound(type) {
+        const ios = isIOSDevice();
+
+        // HTML5 Audio path
+        if (ios) {
+            playHtml5(type);
+        }
+
+        // WebAudio path
         const ctx = ensureAudioCtx();
         if (!ctx) {
-            playHtml5(type);
+            if (!ios) playHtml5(type); // non-ios fallback
             return;
         }
         const tryWebAudio = () => {
             try { playWebAudio(ctx, type); }
-            catch (e) { playHtml5(type); }
+            catch (e) { if (!ios) playHtml5(type); }
         };
         if (ctx.state === 'suspended') {
             ctx.resume().then(() => {
                 if (ctx.state === 'running') tryWebAudio();
-                else playHtml5(type);
-            }).catch(() => playHtml5(type));
+                else if (!ios) playHtml5(type);
+            }).catch(() => { if (!ios) playHtml5(type); });
         } else {
             tryWebAudio();
         }
@@ -1314,7 +1423,10 @@
                         break;
                     case 'welcomeContinue': welcomeContinue(); break;
                     case 'welcomeChange': welcomeChange(); break;
-                    case 'testSound': playSound('c'); break;
+                    case 'showSettings': showSettings(); break;
+                    case 'closeSettings': closeSettings(); break;
+                    case 'settingsTestSound': settingsTestSound(); break;
+                    case 'settingsClearData': settingsClearData(); break;
                     case 'closeReportSmart': {
                         // Archive view (came from leaderboard) -> back to leaderboard.
                         // Live view (just finished a game) -> close & go to setup.

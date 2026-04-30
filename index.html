@@ -132,6 +132,7 @@
                     <button class="btn-big" type="button" data-action="goToSetup">Start misji ➜</button>
                     <button class="btn-big btn-secondary" type="button" data-action="showLeaderboard">Tablica wyników</button>
                     <button class="btn-big btn-secondary" type="button" data-action="showHowto">📖 Jak grać</button>
+                    <button class="btn-big btn-secondary" type="button" data-action="showSettings">⚙️ Ustawienia</button>
                 </div>
             </div>
 
@@ -242,7 +243,7 @@
                     <div class="btn-container-bottom">
                         <button class="btn-big btn-secondary" type="button" data-action="showLeaderboard">Tablica wyników</button>
                         <button class="btn-big btn-secondary" type="button" data-action="showHowto">📖 Jak grać</button>
-                        <button class="btn-big btn-secondary" type="button" data-action="testSound">🔊 Test dźwięku</button>
+                        <button class="btn-big btn-secondary" type="button" data-action="showSettings">⚙️ Ustawienia</button>
                     </div>
                 </div>
             </div>
@@ -482,6 +483,61 @@
             </div>
         </div>
     </div>
+
+    <div id="modal-settings" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <button class="modal-close" type="button" data-action="closeSettings" aria-label="Zamknij">×</button>
+                <h2>Ustawienia</h2>
+                <p style="margin: 6px 0 0; color: rgba(255,255,255,0.85); font-weight: 600; font-size: 13px;">Test dźwięku, czyszczenie danych, diagnostyka</p>
+            </div>
+            <div class="modal-body">
+                <section class="howto-section">
+                    <h3><span class="howto-icon">🔊</span> Test dźwięku</h3>
+                    <p>Sprawdź czy dźwięki działają na Twoim urządzeniu. Po każdym teście pojawia się informacja o statusie.</p>
+                    <div class="settings-row">
+                        <button class="btn-big" type="button" data-action="settingsTestSound">▶ Zagraj dźwięk</button>
+                        <span id="settings-audio-status" class="settings-status">Naciśnij przycisk aby przetestować</span>
+                    </div>
+                    <div id="ios-audio-hint" class="ios-hint" style="display:none;">
+                        <strong>iPhone / iPad:</strong> Jeśli widzisz "Audio gotowe" ale nic nie słyszysz — sprawdź:
+                        <ul>
+                            <li><strong>Przełącznik dzwonka</strong> z lewej strony obok przycisków głośności — musi być w pozycji <em>Dzwonek</em> (nie <em>Cichy</em>)</li>
+                            <li><strong>Przyciski głośności</strong> — naciśnij górny żeby podgłośnić</li>
+                            <li>iOS w trybie <strong>Skupienie / Nie przeszkadzać</strong> może wyciszać aplikacje</li>
+                        </ul>
+                    </div>
+                    <div id="audio-diag" class="settings-diag"></div>
+                </section>
+
+                <section class="howto-section">
+                    <h3><span class="howto-icon">🗑️</span> Wyczyść dane</h3>
+                    <p>Usuń tablicę wyników i zapamiętany profil ostatniego gracza. Ta operacja jest nieodwracalna.</p>
+                    <div class="settings-row">
+                        <button class="btn-big btn-danger" type="button" data-action="settingsClearData">Wyczyść wszystko</button>
+                        <span id="settings-clear-status" class="settings-status"></span>
+                    </div>
+                </section>
+
+                <section class="howto-section">
+                    <h3><span class="howto-icon">ℹ️</span> O aplikacji</h3>
+                    <p>Matematyczna Przygoda — kolorowa, dynamiczna gra do ćwiczenia liczenia. Wszystkie dane (wyniki, profil) zapisywane są lokalnie w Twojej przeglądarce — nic nie wysyłamy na serwer.</p>
+                </section>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-btn-row">
+                    <button class="btn-big btn-secondary" type="button" data-action="closeSettings">Zamknij</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Static <audio> tags for iOS — niektore wersje iOS dziala lepiej z tymi
+         niz z dynamicznie tworzonymi przez new Audio(). data-src ustawiamy
+         pozniej w JS gdy pierwszy raz potrzebujemy. -->
+    <audio id="snd-c" preload="auto" playsinline webkit-playsinline></audio>
+    <audio id="snd-w" preload="auto" playsinline webkit-playsinline></audio>
+    <audio id="snd-lvl" preload="auto" playsinline webkit-playsinline></audio>
 
     <script src="app.js" defer></script>
 </body>
