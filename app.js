@@ -339,7 +339,9 @@
         return html5Audios[type];
     }
 
-    /* ---- WebAudio (preferred) ---- */
+    /* ---- WebAudio (preferred) — uzywamy AudioBufferSourceNode zamiast
+         OscillatorNode bo Oscillator jest zawodny na iOS. Bufor PCM jest
+         generowany raz w pamieci z Float32Array i odtwarzany z gainem. ---- */
     function ensureAudioCtx() {
         if (audioCtx) return audioCtx;
         if (audioCtxFailed) return null;
@@ -353,39 +355,54 @@
         }
     }
 
-    function playWebAudio(ctx, type) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        const now = ctx.currentTime;
-
-        if (type === "c") {
-            osc.type = "sine";
-            osc.frequency.setValueAtTime(500, now);
-            osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
-            gain.gain.setValueAtTime(0.45, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-            osc.start();
-            osc.stop(now + 0.25);
-        } else if (type === "w") {
-            osc.type = "sawtooth";
-            osc.frequency.setValueAtTime(150, now);
-            osc.frequency.linearRampToValueAtTime(100, now + 0.25);
-            gain.gain.setValueAtTime(0.40, now);
-            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-            osc.start();
-            osc.stop(now + 0.25);
-        } else if (type === "lvl") {
-            osc.type = "triangle";
-            osc.frequency.setValueAtTime(420, now);
-            osc.frequency.setValueAtTime(620, now + 0.1);
-            osc.frequency.setValueAtTime(840, now + 0.2);
-            gain.gain.setValueAtTime(0.40, now);
-            gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
-            osc.start();
-            osc.stop(now + 0.45);
+    function buildPcmSamples(type, sampleRate) {
+        const dur = type === 'lvl' ? 0.45 : 0.30;
+        const len = Math.floor(dur * sampleRate);
+        const data = new Float32Array(len);
+        for (let i = 0; i < len; i++) {
+            const t = i / sampleRate;
+            const env = Math.exp(-3.5 * t / dur);
+            let v;
+            if (type === 'c') {
+                const f = 500 + (1000 - 500) * (t / dur);
+                v = Math.sin(2 * Math.PI * f * t) * 0.85;
+            } else if (type === 'w') {
+                const f = 150 - (150 - 100) * (t / dur);
+                const phase = (f * t) % 1;
+                v = (2 * phase - 1) * 0.7;
+            } else { // lvl
+                const f = t < 0.15 ? 420 : (t < 0.30 ? 620 : 840);
+                const tri = 2 * Math.abs(2 * ((f * t) % 1) - 1) - 1;
+                v = tri * 0.7;
+            }
+            data[i] = v * env;
         }
+        return data;
+    }
+
+    let audioBuffers = null;
+    function getAudioBuffer(ctx, type) {
+        if (!audioBuffers) audioBuffers = {};
+        if (audioBuffers[type]) return audioBuffers[type];
+        const sr = ctx.sampleRate || 44100;
+        const samples = buildPcmSamples(type, sr);
+        const buf = ctx.createBuffer(1, samples.length, sr);
+        buf.getChannelData(0).set(samples);
+        audioBuffers[type] = buf;
+        return buf;
+    }
+
+    function playWebAudio(ctx, type) {
+        const buf = getAudioBuffer(ctx, type);
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const gain = ctx.createGain();
+        gain.gain.value = 0.9;
+        src.connect(gain);
+        gain.connect(ctx.destination);
+        src.start(0);
+        // ping diagnostic indicator
+        flashAudioIndicator(true);
     }
 
     function playHtml5(type) {
@@ -394,8 +411,21 @@
         try {
             a.currentTime = 0;
             const p = a.play();
-            if (p && p.catch) p.catch(() => {});
-        } catch (_) {}
+            if (p && p.catch) p.catch(() => flashAudioIndicator(false));
+            else flashAudioIndicator(true);
+        } catch (_) {
+            flashAudioIndicator(false);
+        }
+    }
+
+    /** Maly indicator audio status w prawym gornym rogu game screen.
+        Zielony = audio zagralo, czerwony = problem (mute switch?). */
+    function flashAudioIndicator(ok) {
+        const el = document.getElementById('audio-indicator');
+        if (!el) return;
+        el.classList.remove('audio-good', 'audio-bad');
+        void el.offsetWidth;
+        el.classList.add(ok ? 'audio-good' : 'audio-bad');
     }
 
     /** Glowny entry. Probuje WebAudio, fallback HTML5 jezeli nie wyszlo. */
@@ -805,7 +835,11 @@
         saveLastUser();
 
         clearInterval(gameState.timerInterval);
-        gameState = { score: 0, history: [], timerInterval: null, endTime: 0, active: true, combo: 0 };
+        gameState = {
+            score: 0, history: [], timerInterval: null, endTime: 0,
+            active: true, combo: 0,
+            questionsSeen: new Set() // dedup w sesji
+        };
 
         document.getElementById("modal-report").style.display = "none";
         document.getElementById("modal-alert").style.display = "none";
@@ -854,9 +888,8 @@
         timer.classList.toggle("is-urgent", remaining <= 10);
     }
 
-    function nextQuestion() {
-        if (!gameState.active) return;
-
+    /** Generuje jedno losowe pytanie. Wynik jest CZYSTY (nie modyfikuje stanu). */
+    function generateQuestion() {
         const mode = settings.mode === "mix"
             ? ["add", "sub", "mul", "div"][Math.floor(Math.random() * 4)]
             : settings.mode;
@@ -886,17 +919,37 @@
             a = b * correct;
             symbol = "÷";
         }
+        return { mode, a, b, correct, symbol, text: `${a} ${symbol} ${b}` };
+    }
 
-        gameState.currentQ = { text: `${a} ${symbol} ${b}`, correct, start: Date.now() };
+    function nextQuestion() {
+        if (!gameState.active) return;
+
+        // Dedup: probuj wylosowac pytanie ktorego user jeszcze nie widzial
+        // w tej sesji. Po MAX_ATTEMPTS prawdopodobnie wszystkie sensowne
+        // kombinacje sa wyczerpane — zerujemy historie i pozwalamy na powt.
+        const MAX_ATTEMPTS = 80;
+        let q = generateQuestion();
+        let attempts = 1;
+        while (gameState.questionsSeen.has(q.text) && attempts < MAX_ATTEMPTS) {
+            q = generateQuestion();
+            attempts++;
+        }
+        if (gameState.questionsSeen.has(q.text)) {
+            // Reset — wszystkie kombinacje w danej puli zostaly uzyte
+            gameState.questionsSeen.clear();
+        }
+        gameState.questionsSeen.add(q.text);
+
+        gameState.currentQ = { text: q.text, correct: q.correct, start: Date.now() };
 
         const qBox = document.getElementById("question-text");
         qBox.classList.remove('question-out');
-        // restart questionIn anim
         qBox.style.animation = 'none';
         void qBox.offsetWidth;
         qBox.style.animation = '';
-        qBox.textContent = `${a} ${symbol} ${b} = ?`;
-        renderOptions(buildOptions(correct, mode));
+        qBox.textContent = `${q.text} = ?`;
+        renderOptions(buildOptions(q.correct, q.mode));
     }
 
     function buildOptions(correct, mode) {
@@ -1261,6 +1314,7 @@
                         break;
                     case 'welcomeContinue': welcomeContinue(); break;
                     case 'welcomeChange': welcomeChange(); break;
+                    case 'testSound': playSound('c'); break;
                     case 'closeReportSmart': {
                         // Archive view (came from leaderboard) -> back to leaderboard.
                         // Live view (just finished a game) -> close & go to setup.

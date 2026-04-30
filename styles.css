@@ -1518,6 +1518,31 @@ select {
     animation: timerPulse 1s ease-in-out infinite;
 }
 
+.audio-dot {
+    font-size: 14px;
+    opacity: 0.45;
+    transition: opacity 0.3s ease, transform 0.3s var(--ease-spring);
+    cursor: help;
+}
+
+.audio-dot.audio-good {
+    opacity: 1;
+    color: var(--good);
+    animation: audioPing 0.6s ease;
+}
+
+.audio-dot.audio-bad {
+    opacity: 1;
+    color: var(--bad);
+    animation: audioPing 0.6s ease;
+}
+
+@keyframes audioPing {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.6); }
+    100% { transform: scale(1); }
+}
+
 @keyframes timerPulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.10); }
