@@ -133,7 +133,12 @@
     ];
 
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-    const audioCtx = AudioContextCtor ? new AudioContextCtor() : null;
+    // KLUCZOWE na iOS: NIE tworzymy AudioContext przy ladowaniu skryptu —
+    // iOS WebKit produkuje wtedy "uszkodzony" context ktorego resume() nigdy
+    // nie odpala oscillatorow. Tworzymy lazy w ensureAudioCtx() dopiero na
+    // pierwsze user-gesture.
+    let audioCtx = null;
+    let audioCtxFailed = false;
 
     /* ---------- Stan ---------- */
     let user = { name: "Gracz", avatar: "🦉" };
@@ -235,103 +240,230 @@
     }
 
     /* ============================================================
-       AUDIO — z poprawnym iOS WebKit unlock
+       AUDIO — z dwiema sciezkami (WebAudio + HTML5 Audio fallback)
        ============================================================
-       Problem na iOS: AudioContext startuje w stanie 'suspended',
-       resume() dziala TYLKO z handlera user-gesture, oraz oscillator
-       musi byc tworzony PO zakonczeniu resume() (nie synchronicznie).
-       Dodatkowo iOS potrzebuje "warm-up" silent buffer aby w pelni
-       odblokowac audio. Bez tego dzwieki nie graja w Safari/Vivaldi
-       /Chrome na iPhone (wszystkie uzywaja WebKit). */
-    let audioUnlocked = false;
-    let audioUnlockPromise = null;
+       iOS WebKit ma kilka quirkow ktore zlamaly poprzednie podejscia:
+       1) AudioContext stworzony przed user-gesture jest "broken"
+       2) resume() musi byc wywolany Z user-gesture
+       3) Hardware mute switch na iPhone moze wyciszyc Web Audio
+       4) Niektore wersje iOS maja bugi z OscillatorNode
+       Dlatego trzymamy DWIE sciezki: WebAudio (lazy) jako preferowana,
+       i HTML5 <audio> z syntezowanymi WAV jako fallback. Plus retry
+       jezeli pierwsza nie zagra w 100ms. */
 
-    function unlockAudio() {
-        if (!audioCtx) return Promise.resolve();
-        if (audioUnlocked) return Promise.resolve();
-        if (audioUnlockPromise) return audioUnlockPromise;
-
-        const doUnlock = () => {
-            // Silent 1-sample buffer — iOS wymaga zeby "rozgrzac" context.
-            try {
-                const buffer = audioCtx.createBuffer(1, 1, 22050);
-                const source = audioCtx.createBufferSource();
-                source.buffer = buffer;
-                source.connect(audioCtx.destination);
-                source.start(0);
-            } catch (_) { /* ignore */ }
-            audioUnlocked = true;
+    /* ---- HTML5 Audio fallback: synteza WAV w pamieci ---- */
+    function makeWav(samples, sampleRate) {
+        sampleRate = sampleRate || 22050;
+        const buffer = new ArrayBuffer(44 + samples.length * 2);
+        const view = new DataView(buffer);
+        const writeStr = (offset, str) => {
+            for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
         };
-
-        if (audioCtx.state === 'suspended') {
-            audioUnlockPromise = audioCtx.resume().then(doUnlock).catch(() => {});
-        } else {
-            doUnlock();
-            audioUnlockPromise = Promise.resolve();
+        writeStr(0, 'RIFF');
+        view.setUint32(4, 36 + samples.length * 2, true);
+        writeStr(8, 'WAVE');
+        writeStr(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);          // PCM
+        view.setUint16(22, 1, true);          // mono
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * 2, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeStr(36, 'data');
+        view.setUint32(40, samples.length * 2, true);
+        let offset = 44;
+        for (let i = 0; i < samples.length; i++) {
+            const s = Math.max(-1, Math.min(1, samples[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            offset += 2;
         }
-        return audioUnlockPromise;
+        return buffer;
     }
 
-    /** Attach unlock to first user gesture — niezawodna metoda na iOS. */
-    function installAudioUnlockGestureHooks() {
-        if (!audioCtx) return;
-        const events = ['touchstart', 'touchend', 'mousedown', 'click', 'keydown'];
-        const handler = () => {
-            unlockAudio();
-            // Po pierwszym sukcesie odpinamy listenery zeby nie marnowac CPU.
-            if (audioUnlocked) {
-                events.forEach(evt => document.removeEventListener(evt, handler));
-            }
-        };
-        events.forEach(evt => document.addEventListener(evt, handler, { passive: true }));
+    function bufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+        }
+        return btoa(binary);
     }
 
-    function playSound(type) {
-        if (!audioCtx) return;
-
-        const doPlay = () => {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            const now = audioCtx.currentTime;
-
-            if (type === "c") {
-                osc.frequency.setValueAtTime(500, now);
-                osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
-                gain.gain.setValueAtTime(0.22, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-                osc.start();
-                osc.stop(now + 0.25);
-            } else if (type === "w") {
-                osc.type = "sawtooth";
-                osc.frequency.setValueAtTime(150, now);
-                osc.frequency.linearRampToValueAtTime(100, now + 0.25);
-                gain.gain.setValueAtTime(0.18, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-                osc.start();
-                osc.stop(now + 0.25);
-            } else if (type === "lvl") {
-                osc.type = "triangle";
-                osc.frequency.setValueAtTime(420, now);
-                osc.frequency.setValueAtTime(620, now + 0.1);
-                osc.frequency.setValueAtTime(840, now + 0.2);
-                gain.gain.setValueAtTime(0.18, now);
-                gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
-                osc.start();
-                osc.stop(now + 0.45);
+    function buildSoundDataUri(type) {
+        const sr = 22050;
+        const dur = type === 'lvl' ? 0.45 : 0.30;
+        const len = Math.floor(dur * sr);
+        const data = new Float32Array(len);
+        for (let i = 0; i < len; i++) {
+            const t = i / sr;
+            const env = Math.exp(-3.5 * t / dur);
+            let v;
+            if (type === 'c') {
+                // up-chirp 500 -> 1000 Hz, sine
+                const f = 500 + (1000 - 500) * (t / dur);
+                v = Math.sin(2 * Math.PI * f * t) * 0.7;
+            } else if (type === 'w') {
+                // down-chirp 150 -> 100 Hz, sawtooth-ish
+                const f = 150 - (150 - 100) * (t / dur);
+                const phase = (f * t) % 1;
+                v = (2 * phase - 1) * 0.55;
+            } else { // lvl
+                // 3-step ascending triangle 420/620/840
+                const f = t < 0.15 ? 420 : (t < 0.30 ? 620 : 840);
+                const tri = 2 * Math.abs(2 * ((f * t) % 1) - 1) - 1;
+                v = tri * 0.55;
             }
-        };
+            data[i] = v * env;
+        }
+        return 'data:audio/wav;base64,' + bufferToBase64(makeWav(data, sr));
+    }
 
-        // CRITICAL na iOS: jezeli context jeszcze suspended, najpierw resume,
-        // PO zakonczeniu twórz oscillator. Synchroniczne wywolanie nie zagra.
-        if (audioCtx.state === 'suspended') {
-            unlockAudio().then(() => {
-                if (audioCtx.state === 'running') doPlay();
+    let html5Audios = null;
+    function getHtml5Audio(type) {
+        if (!html5Audios) {
+            html5Audios = {
+                c: new Audio(buildSoundDataUri('c')),
+                w: new Audio(buildSoundDataUri('w')),
+                lvl: new Audio(buildSoundDataUri('lvl')),
+            };
+            ['c','w','lvl'].forEach(k => {
+                const a = html5Audios[k];
+                a.preload = 'auto';
+                a.playsInline = true;
+                a.volume = 0.85;
+                try { a.load(); } catch(_) {}
             });
-        } else {
-            doPlay();
         }
+        return html5Audios[type];
+    }
+
+    /* ---- WebAudio (preferred) ---- */
+    function ensureAudioCtx() {
+        if (audioCtx) return audioCtx;
+        if (audioCtxFailed) return null;
+        if (!AudioContextCtor) { audioCtxFailed = true; return null; }
+        try {
+            audioCtx = new AudioContextCtor();
+            return audioCtx;
+        } catch (e) {
+            audioCtxFailed = true;
+            return null;
+        }
+    }
+
+    function playWebAudio(ctx, type) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const now = ctx.currentTime;
+
+        if (type === "c") {
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(500, now);
+            osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+            gain.gain.setValueAtTime(0.45, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+            osc.start();
+            osc.stop(now + 0.25);
+        } else if (type === "w") {
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.linearRampToValueAtTime(100, now + 0.25);
+            gain.gain.setValueAtTime(0.40, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+            osc.start();
+            osc.stop(now + 0.25);
+        } else if (type === "lvl") {
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(420, now);
+            osc.frequency.setValueAtTime(620, now + 0.1);
+            osc.frequency.setValueAtTime(840, now + 0.2);
+            gain.gain.setValueAtTime(0.40, now);
+            gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+            osc.start();
+            osc.stop(now + 0.45);
+        }
+    }
+
+    function playHtml5(type) {
+        const a = getHtml5Audio(type);
+        if (!a) return;
+        try {
+            a.currentTime = 0;
+            const p = a.play();
+            if (p && p.catch) p.catch(() => {});
+        } catch (_) {}
+    }
+
+    /** Glowny entry. Probuje WebAudio, fallback HTML5 jezeli nie wyszlo. */
+    function playSound(type) {
+        const ctx = ensureAudioCtx();
+        if (!ctx) {
+            playHtml5(type);
+            return;
+        }
+        const tryWebAudio = () => {
+            try { playWebAudio(ctx, type); }
+            catch (e) { playHtml5(type); }
+        };
+        if (ctx.state === 'suspended') {
+            ctx.resume().then(() => {
+                if (ctx.state === 'running') tryWebAudio();
+                else playHtml5(type);
+            }).catch(() => playHtml5(type));
+        } else {
+            tryWebAudio();
+        }
+    }
+
+    /** Przy pierwszym user-gesture: tworzymy ctx, resume, silent warm-up,
+        plus dotykamy HTML5 audio elements (load) zeby iOS pozwolil na play. */
+    function installAudioUnlockGestureHooks() {
+        let installed = false;
+        const handler = () => {
+            const ctx = ensureAudioCtx();
+            if (ctx && ctx.state === 'suspended') {
+                ctx.resume().then(() => {
+                    try {
+                        const buffer = ctx.createBuffer(1, 1, 22050);
+                        const src = ctx.createBufferSource();
+                        src.buffer = buffer;
+                        src.connect(ctx.destination);
+                        src.start(0);
+                    } catch (_) {}
+                }).catch(() => {});
+            }
+            // "Touch" HTML5 audio elements w user-gesture context — iOS to zapamietuje.
+            getHtml5Audio('c'); getHtml5Audio('w'); getHtml5Audio('lvl');
+            ['c','w','lvl'].forEach(k => {
+                const a = html5Audios && html5Audios[k];
+                if (!a) return;
+                try {
+                    a.muted = true;
+                    const p = a.play();
+                    if (p && p.then) p.then(() => { a.pause(); a.currentTime = 0; a.muted = false; }).catch(() => { a.muted = false; });
+                    else { a.pause(); a.currentTime = 0; a.muted = false; }
+                } catch (_) {}
+            });
+            if (!installed) {
+                installed = true;
+            }
+        };
+        const events = ['touchstart','touchend','mousedown','click','keydown'];
+        events.forEach(evt => document.addEventListener(evt, handler, { passive: true, once: false }));
+        // Auto-cleanup po pierwszym sukcesie
+        let cleanup = null;
+        cleanup = () => {
+            if (audioCtx && audioCtx.state === 'running') {
+                events.forEach(evt => document.removeEventListener(evt, handler));
+            } else {
+                setTimeout(cleanup, 500);
+            }
+        };
+        setTimeout(cleanup, 1000);
     }
 
     /* ============================================================
