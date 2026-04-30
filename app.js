@@ -21,9 +21,96 @@
     const rewardMilestones = [10, 15, 20, 25, 30, 35, 40, 45, 50, 100];
     const storageKey = "mathHeroV16";
     const legacyStorageKey = "mathHeroV15";
+    const lastUserKey = "mathHeroLastUser";
 
     const confettiColors = ["#0F766E", "#3730A3", "#D97706", "#0EA5E9", "#10B981", "#F59E0B"];
     const mathSymbols = ["+", "−", "×", "÷", "=", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "π", "√", "%"];
+
+    // 30 pozytywnych cytatów po trafionej odpowiedzi.
+    const cheers = [
+        "Świetnie!",
+        "Dasz radę!",
+        "Tak trzymaj!",
+        "Brawo!",
+        "Kolejna trafiona!",
+        "Mistrzowsko!",
+        "Tak się to robi!",
+        "Liczbowy talent!",
+        "Genialnie!",
+        "Tip-top!",
+        "Trafnie!",
+        "W punkt!",
+        "Idealnie!",
+        "Bingo!",
+        "Nie do zatrzymania!",
+        "Mózg pracuje!",
+        "Czujesz to!",
+        "Pokazujesz klasę!",
+        "Tempo wzorowe!",
+        "Pełen luz!",
+        "Niezły refleks!",
+        "Tak właśnie!",
+        "Krok po kroku do mistrza!",
+        "Robisz to świetnie!",
+        "Liczby Cię słuchają!",
+        "Kosmos!",
+        "Jesteś w gazie!",
+        "To była pestka!",
+        "Ekstra!",
+        "Cudo!"
+    ];
+
+    // 30 wspierających cytatów po nietrafionej.
+    const consolations = [
+        "Nic się nie stało!",
+        "Spokojnie, jeszcze potrenujemy.",
+        "Każdy popełnia błędy.",
+        "Następna będzie Twoja!",
+        "Spróbuj jeszcze raz!",
+        "Bez paniki!",
+        "Już wiesz na co uważać.",
+        "Trzymaj głowę wysoko!",
+        "Pomyłka to lekcja.",
+        "Hej, bywa!",
+        "To nic strasznego.",
+        "Krok do tyłu, dwa do przodu!",
+        "Teraz wiesz lepiej.",
+        "Dalej, do dzieła!",
+        "Skup się i lecimy!",
+        "Nowa szansa już idzie!",
+        "Każdy mistrz się myli.",
+        "Wytrzymaj, idziesz dobrze!",
+        "Małe potknięcie, nie problem.",
+        "Spokojnie, oddech.",
+        "Wracamy do gry!",
+        "Liczby bywają podchwytliwe.",
+        "Odetchnij i spróbuj!",
+        "Mózg się rozgrzewa.",
+        "Powolutku, ale dokładnie.",
+        "Nie poddawaj się!",
+        "Każda gra to trening.",
+        "Zaraz znów trafisz!",
+        "Nawet Einstein się mylił.",
+        "Trening czyni mistrza."
+    ];
+
+    // Tracker ostatnich uzytych — nie powtarzaj w sesji.
+    const recentQuotes = { cheer: [], console: [] };
+
+    function getQuote(type) {
+        const pool = type === 'cheer' ? cheers : consolations;
+        const recent = recentQuotes[type === 'cheer' ? 'cheer' : 'console'];
+        const memory = Math.min(Math.floor(pool.length * 0.6), pool.length - 1);
+        let candidate;
+        let attempts = 0;
+        do {
+            candidate = pool[Math.floor(Math.random() * pool.length)];
+            attempts++;
+        } while (recent.includes(candidate) && attempts < 30);
+        recent.push(candidate);
+        if (recent.length > memory) recent.shift();
+        return candidate;
+    }
 
     // Math facts shown on profile screen, rotating every 7s.
     const mathFacts = [
@@ -286,6 +373,23 @@
         setTimeout(() => a.classList.remove('shake'), 600);
     }
 
+    /* In-game motivational quote — pokazuje sie w progress-pill po
+       odpowiedzi, znika po 2.5s wracajac do domyslnego tekstu. */
+    let quoteResetTimer = null;
+    function showInGameQuote(text, kind) {
+        const pill = document.querySelector('.progress-pill');
+        if (!pill) return;
+        pill.textContent = text;
+        pill.classList.remove('quote-good', 'quote-bad', 'quote-show');
+        void pill.offsetWidth;
+        pill.classList.add('quote-show', kind === 'good' ? 'quote-good' : 'quote-bad');
+        clearTimeout(quoteResetTimer);
+        quoteResetTimer = setTimeout(() => {
+            pill.textContent = 'Buduj serię poprawnych odpowiedzi';
+            pill.classList.remove('quote-good', 'quote-bad', 'quote-show');
+        }, 2500);
+    }
+
     /* ============================================================
        NAVIGATION & HELPERS
        ============================================================ */
@@ -412,6 +516,81 @@
         }
     }
 
+    /* ---------- Last-user memory ---------- */
+    function saveLastUser() {
+        try {
+            localStorage.setItem(lastUserKey, JSON.stringify({
+                name: user.name,
+                avatar: user.avatar,
+                ts: Date.now()
+            }));
+        } catch (e) { /* ignore quota errors */ }
+    }
+
+    function loadLastUser() {
+        try {
+            const raw = localStorage.getItem(lastUserKey);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed || !parsed.name || !parsed.avatar) return null;
+            return parsed;
+        } catch (e) { return null; }
+    }
+
+    function formatRelativeTime(ts) {
+        if (!ts) return "dawno temu";
+        const diff = Date.now() - ts;
+        const min = Math.floor(diff / 60000);
+        const hr = Math.floor(diff / 3600000);
+        const day = Math.floor(diff / 86400000);
+        const date = new Date(ts);
+        const dateStr = date.toLocaleString("pl-PL", { dateStyle: "short", timeStyle: "short" });
+        if (min < 1) return `przed chwilą (${dateStr})`;
+        if (min < 60) return `${min} min temu (${dateStr})`;
+        if (hr < 24) return `${hr} godz. temu (${dateStr})`;
+        if (day === 1) return `wczoraj o ${date.toLocaleTimeString("pl-PL", { hour: "2-digit", minute: "2-digit" })}`;
+        if (day < 7) return `${day} dni temu (${dateStr})`;
+        return dateStr;
+    }
+
+    function renderWelcomeBack() {
+        const banner = document.getElementById('welcome-back');
+        const last = loadLastUser();
+        if (!banner) return;
+        if (!last) {
+            banner.style.display = 'none';
+            return;
+        }
+        document.getElementById('welcome-avatar').textContent = last.avatar;
+        document.getElementById('welcome-name').textContent = `Witaj, ${last.name}!`;
+        document.getElementById('welcome-meta').textContent = `Ostatnia gra: ${formatRelativeTime(last.ts)}`;
+        banner.style.display = 'flex';
+    }
+
+    function welcomeContinue() {
+        const last = loadLastUser();
+        if (!last) return;
+        user.name = last.name;
+        user.avatar = last.avatar;
+        // Update form so if user comes back to profile via 'Zmień profil' they see correct data
+        const username = document.getElementById('username');
+        if (username) username.value = last.name;
+        document.querySelectorAll('.avatar-option').forEach((el) => {
+            el.classList.toggle('selected', el.textContent.trim() === last.avatar);
+        });
+        document.getElementById("current-avatar-display").textContent = user.avatar;
+        document.getElementById("greeting-name").textContent = `Cześć, ${user.name}!`;
+        switchScreen('screen-setup');
+    }
+
+    function welcomeChange() {
+        const banner = document.getElementById('welcome-back');
+        if (banner) banner.style.display = 'none';
+        // Scroll user to the form so they can change name/avatar
+        const form = document.querySelector('.profile-form-card');
+        if (form) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     function getNextRewardMilestone(combo) {
         return rewardMilestones.find((v) => combo < v) || rewardMilestones[rewardMilestones.length - 1];
     }
@@ -428,6 +607,10 @@
     function startGame(mode) {
         settings.mode = mode;
         settings.timeMin = parseInt(document.getElementById("timer-select").value, 10);
+
+        // Zapamietaj usera (imie + avatar + timestamp) — pozniej przy
+        // ponownym wejsciu pokazemy "Witaj ponownie!"
+        saveLastUser();
 
         clearInterval(gameState.timerInterval);
         gameState = { score: 0, history: [], timerInterval: null, endTime: 0, active: true, combo: 0 };
@@ -576,6 +759,7 @@
             flashOverlay('good');
             celebrateAvatar();
             checkRewards();
+            showInGameQuote(getQuote('cheer'), 'good');
         } else {
             btn.classList.add("wrong");
             playSound("w");
@@ -588,6 +772,7 @@
                     b.classList.add("correct");
                 }
             });
+            showInGameQuote(getQuote('console'), 'bad');
         }
 
         animateScoreTo(gameState.score);
@@ -876,6 +1061,14 @@
                         document.getElementById('modal-leaderboard').style.display = 'none';
                         break;
                     case 'closeReport': closeReport(); break;
+                    case 'showHowto':
+                        document.getElementById('modal-howto').style.display = 'flex';
+                        break;
+                    case 'closeHowto':
+                        document.getElementById('modal-howto').style.display = 'none';
+                        break;
+                    case 'welcomeContinue': welcomeContinue(); break;
+                    case 'welcomeChange': welcomeChange(); break;
                     case 'closeReportSmart': {
                         // Archive view (came from leaderboard) -> back to leaderboard.
                         // Live view (just finished a game) -> close & go to setup.
@@ -964,6 +1157,7 @@
         bindClickHandlers();
         startQuoteRotation();
         renderProfileTopList();
+        renderWelcomeBack();
     }
 
     if (document.readyState === 'loading') {

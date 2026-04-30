@@ -47,6 +47,19 @@
                 <button class="fullscreen-btn" type="button" aria-label="Pełny ekran" data-action="toggleFullScreen">⛶</button>
 
                 <div class="profile-main">
+                    <section class="panel-card welcome-back" id="welcome-back" style="display:none;">
+                        <div class="welcome-avatar" id="welcome-avatar" aria-hidden="true">🦉</div>
+                        <div class="welcome-text">
+                            <span class="welcome-kicker">Witaj ponownie!</span>
+                            <h2 id="welcome-name">Graczu</h2>
+                            <p id="welcome-meta">Ostatnia gra: dawno temu</p>
+                        </div>
+                        <div class="welcome-actions">
+                            <button class="btn-big" type="button" data-action="welcomeContinue">Zagraj ponownie ➜</button>
+                            <button class="link-btn" type="button" data-action="welcomeChange">Zmień profil</button>
+                        </div>
+                    </section>
+
                     <section class="panel-card hero-panel">
                         <div class="hero-copy">
                             <div class="hero-topline">Matematyczna misja dnia</div>
@@ -118,6 +131,7 @@
                 <div class="btn-container-bottom">
                     <button class="btn-big" type="button" data-action="goToSetup">Start misji ➜</button>
                     <button class="btn-big btn-secondary" type="button" data-action="showLeaderboard">Tablica wyników</button>
+                    <button class="btn-big btn-secondary" type="button" data-action="showHowto">📖 Jak grać</button>
                 </div>
             </div>
 
@@ -227,6 +241,7 @@
 
                     <div class="btn-container-bottom">
                         <button class="btn-big btn-secondary" type="button" data-action="showLeaderboard">Tablica wyników</button>
+                        <button class="btn-big btn-secondary" type="button" data-action="showHowto">📖 Jak grać</button>
                     </div>
                 </div>
             </div>
@@ -376,6 +391,78 @@
             </div>
             <div class="modal-footer" id="report-archive-footer" style="display:none;">
                 <button class="btn-big btn-secondary" type="button" data-action="closeReport">Wróć do tablicy</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-howto" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <button class="modal-close" type="button" data-action="closeHowto" aria-label="Zamknij">×</button>
+                <h2>Jak grać</h2>
+                <p style="margin: 6px 0 0; color: rgba(255,255,255,0.85); font-weight: 600; font-size: 13px;">Krótki przewodnik po Matematycznej Przygodzie</p>
+            </div>
+            <div class="modal-body">
+                <section class="howto-section">
+                    <h3><span class="howto-icon">🎯</span> Cel gry</h3>
+                    <p>Trenuj rachunki w głowie odpowiadając na losowe działania matematyczne w wybranym tempie. Buduj długie serie poprawnych odpowiedzi i pokonuj swój rekord.</p>
+                </section>
+
+                <section class="howto-section">
+                    <h3><span class="howto-icon">🕹️</span> Pięć misji</h3>
+                    <ul class="howto-modes">
+                        <li><span class="howto-pill bg-add">➕</span><div><strong>Dodawanie</strong><span>Buduj pewność i tempo liczenia.</span></div></li>
+                        <li><span class="howto-pill bg-sub">➖</span><div><strong>Odejmowanie</strong><span>Ćwicz skupienie i dokładność.</span></div></li>
+                        <li><span class="howto-pill bg-mul">✖️</span><div><strong>Mnożenie</strong><span>Wzmacniaj pamięć tabliczki.</span></div></li>
+                        <li><span class="howto-pill bg-div">➗</span><div><strong>Dzielenie</strong><span>Ucz się logicznych zależności.</span></div></li>
+                        <li><span class="howto-pill bg-mix">🎲</span><div><strong>Losowy mix</strong><span>Mieszanka wszystkich czterech działań.</span></div></li>
+                    </ul>
+                </section>
+
+                <section class="howto-section">
+                    <h3><span class="howto-icon">🎚️</span> Trzy poziomy trudności</h3>
+                    <ul class="howto-levels">
+                        <li><strong>🐣 Odkrywca</strong> <span class="howto-range">0 - 100</span><em>Liczby do setki, idealne do treningu podstaw.</em></li>
+                        <li><strong>🎒 Podróżnik</strong> <span class="howto-range">0 - 500</span><em>Większe liczby, dokładniejsze rachunki.</em></li>
+                        <li><strong>🚀 Mistrz</strong> <span class="howto-range">0 - 1000</span><em>Pełen zakres - wyzwanie dla zaawansowanych.</em></li>
+                    </ul>
+                </section>
+
+                <section class="howto-section">
+                    <h3><span class="howto-icon">⏱️</span> Czas gry</h3>
+                    <p>Wybierz z menu: <strong>trening bez limitu</strong>, <strong>1-minutowy sprint</strong>, lub sesje 3, 5, 10, 15, 20, 30 minut. Ostatnie 10 sekund timer pulsuje na czerwono.</p>
+                </section>
+
+                <section class="howto-section">
+                    <h3><span class="howto-icon">🏆</span> Combo i nagrody</h3>
+                    <ul class="howto-rewards">
+                        <li><strong>+10 punktów</strong> za każdą poprawną odpowiedź.</li>
+                        <li>Co <strong>10 odpowiedzi z rzędu</strong> dostajesz nagrodę 🍬 na półkę.</li>
+                        <li>Pierścienie wokół awatara wypełniają się przy seriach <strong>10, 20, 30+</strong>.</li>
+                        <li><strong>50 z rzędu</strong> = 👑 status Mistrza, <strong>100 z rzędu</strong> = 💎 Legenda.</li>
+                        <li>Każdy błąd zeruje serię, ale punkty zostają.</li>
+                    </ul>
+                </section>
+
+                <section class="howto-section">
+                    <h3><span class="howto-icon">📊</span> Tablica wyników</h3>
+                    <p>Najlepsze 20 wyników zapisuje się lokalnie w przeglądarce. Otwórz <strong>Tablicę wyników</strong> i kliknij dowolny rezultat aby zobaczyć pełen raport sesji - wszystkie pytania, czasy odpowiedzi, ekstrema (najszybsze i najwolniejsze).</p>
+                </section>
+
+                <section class="howto-section">
+                    <h3><span class="howto-icon">💡</span> Wskazówki</h3>
+                    <ul class="howto-tips">
+                        <li>Zacznij od trybu <strong>Odkrywca + 1 minuta</strong> aby się rozgrzać.</li>
+                        <li>W trakcie gry pojawiają się krótkie zachęty - to tylko podpowiedzi, nie przeszkadzają.</li>
+                        <li>Kliknięcie 🔢 w prawym górnym rogu otwiera <strong>pełny ekran</strong>.</li>
+                        <li>Twoje imię i awatar są zapamiętywane - następnym razem wystarczy kliknąć "Zagraj ponownie".</li>
+                    </ul>
+                </section>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-btn-row">
+                    <button class="btn-big" type="button" data-action="closeHowto">Zamknij i graj</button>
+                </div>
             </div>
         </div>
     </div>
