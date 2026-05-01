@@ -31,50 +31,96 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client
 
-      - name: Prepare connection URL
+      - name: Prepare connection (separate components, no URL-encoding needed)
         env:
-          RAW_URL: ${{ secrets.SUPABASE_DB_URL }}
+          DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          DB_URL_LEGACY: ${{ secrets.SUPABASE_DB_URL }}
+          PROJECT_URL: ${{ secrets.SUPABASE_URL }}
         run: |
           set -euo pipefail
-          if [ -z "${RAW_URL:-}" ]; then
-              echo "::error::SUPABASE_DB_URL secret nie jest ustawiony."
-              echo "Settings -> Secrets and variables -> Actions -> New repo secret"
-              echo "Wartosc: Supabase Dashboard -> Project Settings -> Database -> Connection String -> URI"
-              exit 1
-          fi
-          # Supabase Postgres wymaga SSL. Dodaj sslmode=require jezeli go nie ma.
-          DB_URL="$RAW_URL"
-          if ! echo "$DB_URL" | grep -q 'sslmode='; then
-              if echo "$DB_URL" | grep -q '?'; then
-                  DB_URL="${DB_URL}&sslmode=require"
-              else
-                  DB_URL="${DB_URL}?sslmode=require"
+
+          # Pierwsza opcja: nowe oddzielne secrety (PREFEROWANE — brak URL-encoding)
+          if [ -n "${DB_PASSWORD:-}" ] && [ -n "${PROJECT_URL:-}" ]; then
+              # Wycinamy projectref z https://<ref>.supabase.co
+              REF=$(echo "$PROJECT_URL" | sed -E 's|^https?://([^.]+)\.supabase\.co.*$|\1|')
+              if [ -z "$REF" ] || [ "$REF" = "$PROJECT_URL" ]; then
+                  echo "::error::Nie udalo sie wyciagnac project ref z SUPABASE_URL='$PROJECT_URL'"
+                  exit 1
               fi
+              {
+                  echo "PGHOST=db.${REF}.supabase.co"
+                  echo "PGPORT=5432"
+                  echo "PGUSER=postgres"
+                  echo "PGDATABASE=postgres"
+                  echo "PGSSLMODE=require"
+                  echo "PGPASSWORD<<__EOL__"
+                  echo "$DB_PASSWORD"
+                  echo "__EOL__"
+              } >> "$GITHUB_ENV"
+              echo "Polaczenie skonfigurowane dla db.${REF}.supabase.co:5432 (uzytkownik postgres, SSL on)"
+              exit 0
           fi
-          # Maskuj hasło w logach
-          MASKED=$(echo "$DB_URL" | sed -E 's|://([^:]+):[^@]+@|://\1:****@|')
-          echo "DB URL (masked): $MASKED"
-          # Wystaw do nastepnego stepu przez GITHUB_ENV (multiline-safe)
-          {
-              echo "DB_URL<<__EOL__"
-              echo "$DB_URL"
-              echo "__EOL__"
-          } >> "$GITHUB_ENV"
+
+          # Fallback: stary SUPABASE_DB_URL (jezeli ktos go ma i haslo BEZ znakow specjalnych)
+          if [ -n "${DB_URL_LEGACY:-}" ]; then
+              DB_URL="$DB_URL_LEGACY"
+              if ! echo "$DB_URL" | grep -q 'sslmode='; then
+                  if echo "$DB_URL" | grep -q '?'; then
+                      DB_URL="${DB_URL}&sslmode=require"
+                  else
+                      DB_URL="${DB_URL}?sslmode=require"
+                  fi
+              fi
+              MASKED=$(echo "$DB_URL" | sed -E 's|://([^:]+):[^@]+@|://\1:****@|')
+              echo "Uzywam legacy URL: $MASKED"
+              echo "UWAGA: jezeli haslo ma znaki & % @ : / itp. - lepiej przelacz sie na SUPABASE_DB_PASSWORD"
+              {
+                  echo "DB_URL<<__EOL__"
+                  echo "$DB_URL"
+                  echo "__EOL__"
+              } >> "$GITHUB_ENV"
+              exit 0
+          fi
+
+          echo "::error::Brak konfiguracji polaczenia z baza."
+          echo ""
+          echo "DODAJ DWA SEKRETY (Settings -> Secrets and variables -> Actions):"
+          echo "  1) SUPABASE_URL          (juz masz — sprawdz czy istnieje)"
+          echo "  2) SUPABASE_DB_PASSWORD  — surowe haslo z Supabase Dashboard ->"
+          echo "                              Project Settings -> Database -> Connection String"
+          echo "                              SKOPIUJ TYLKO HASLO, BEZ URL-encodingu."
+          echo ""
+          echo "Mozesz USUNAC stary SUPABASE_DB_URL — nie jest juz potrzebny."
+          exit 1
 
       - name: Test connection
         run: |
           set -euo pipefail
           echo "→ select version() ..."
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A -c "select version();"
-          echo "→ current database / user ..."
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A -c "select current_database(), current_user;"
+          if [ -n "${DB_URL:-}" ]; then
+              psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A -c "select version();"
+              psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A -c "select current_database(), current_user;"
+          else
+              psql -v ON_ERROR_STOP=1 -t -A -c "select version();"
+              psql -v ON_ERROR_STOP=1 -t -A -c "select current_database(), current_user;"
+          fi
+          echo "✓ polaczenie OK"
 
       - name: Apply migrations in order
         run: |
           set -euo pipefail
 
+          # Funkcja-wrapper na psql — uzywa DB_URL jezeli jest, inaczej PG*
+          psql_exec() {
+              if [ -n "${DB_URL:-}" ]; then
+                  psql "$DB_URL" "$@"
+              else
+                  psql "$@"
+              fi
+          }
+
           echo "=== Krok 1: tabela meta _migrations ==="
-          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "
+          psql_exec -v ON_ERROR_STOP=1 -c "
             create table if not exists public._migrations (
                 name text primary key,
                 applied_at timestamptz not null default now(),
@@ -99,9 +145,8 @@ jobs:
               name=$(basename "$file")
               checksum=$(sha256sum "$file" | cut -c1-16)
 
-              applied=$(psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A \
-                  -c "select count(*) from public._migrations where name = '\$\$$name\$\$';" 2>/dev/null || echo "0")
-              # ^^ dolar-quoted string zeby uniknac problemow z apostrofami w nazwach
+              applied=$(psql_exec -v ON_ERROR_STOP=1 -t -A \
+                  -c "select count(*) from public._migrations where name = '$name';" 2>/dev/null || echo "0")
               if [ "$applied" = "1" ]; then
                   echo "✓ $name już zastosowana — pomijam"
                   continue
@@ -111,17 +156,16 @@ jobs:
               echo "──────────────────────────────────────────────────"
               echo "→ Wgrywam $name (sha=$checksum)"
               echo "──────────────────────────────────────────────────"
-              # Uruchom z echo zapytan, zeby w razie bledu bylo widac ktora linia padla
-              if ! psql "$DB_URL" -v ON_ERROR_STOP=1 --echo-errors -f "$file"; then
+              if ! psql_exec -v ON_ERROR_STOP=1 --echo-errors -f "$file"; then
                   echo "::error::Migracja $name nie powiodla sie. Zobacz log powyzej."
                   exit 1
               fi
-              psql "$DB_URL" -v ON_ERROR_STOP=1 \
+              psql_exec -v ON_ERROR_STOP=1 \
                   -c "insert into public._migrations(name, checksum) values ('$name', '$checksum');"
               echo "✓ $name zastosowana"
           done
 
           echo ""
           echo "=== Stan koncowy ==="
-          psql "$DB_URL" -v ON_ERROR_STOP=1 \
+          psql_exec -v ON_ERROR_STOP=1 \
               -c "select name, applied_at, checksum from public._migrations order by name;"
