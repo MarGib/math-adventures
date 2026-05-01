@@ -50,14 +50,14 @@ order by games_count desc;
 -- ------------------------------------------------------------
 create or replace view public.device_summary as
 select
-    category,
+    coalesce(client_info->>'category', 'unknown') as category,
     count(*)                  as games_count,
     count(distinct user_id)   as players_count,
     round(100.0 * count(*) / nullif((select count(*) from public.game_results
         where client_info <> '{}'::jsonb), 0), 1) as games_pct
 from public.game_results
 where client_info <> '{}'::jsonb
-group by category
+group by 1
 order by games_count desc;
 
 -- ------------------------------------------------------------
