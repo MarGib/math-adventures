@@ -1,0 +1,95 @@
+name: Apply DB migrations
+
+# Triggers:
+#  - Auto: kazdy push do main ktory rusza pliki w supabase/migrations/
+#  - Manual: zakladka Actions -> Run workflow (dla force-runa)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - '.github/workflows/db-migrate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Tylko jeden migration job naraz — zeby DDL sie nie scieral
+concurrency:
+  group: db-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+
+      - name: Verify secret is configured
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+              echo "::error::SUPABASE_DB_URL secret nie jest ustawiony."
+              echo "Wejdz na github.com/MarGib/math-adventures/settings/secrets/actions i dodaj SUPABASE_DB_URL."
+              echo "Wartosc: Supabase Dashboard -> Project Settings -> Database -> Connection String -> URI (Direct connection)"
+              exit 1
+          fi
+
+      - name: Apply migrations in order
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+
+          # 1) Stworz tabele _migrations jezeli jeszcze nie ma
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c "
+            create table if not exists public._migrations (
+                name text primary key,
+                applied_at timestamptz not null default now(),
+                checksum text
+            );
+          "
+
+          # 2) Iteruj po plikach .sql w kolejnosci alfabetycznej (0001, 0002, ...)
+          shopt -s nullglob
+          files=(supabase/migrations/*.sql)
+          if [ ${#files[@]} -eq 0 ]; then
+              echo "Brak plikow migracji w supabase/migrations/"
+              exit 0
+          fi
+
+          ANY_APPLIED=0
+          for file in $(printf '%s\n' "${files[@]}" | sort); do
+              name=$(basename "$file")
+              checksum=$(sha256sum "$file" | cut -c1-16)
+
+              applied_count=$(psql "$DATABASE_URL" -t -A -v ON_ERROR_STOP=1 \
+                  -c "select count(*) from public._migrations where name = '$name';")
+
+              if [ "$applied_count" = "1" ]; then
+                  echo "✓ $name już zastosowana — pomijam"
+                  continue
+              fi
+
+              echo "→ Wgrywam $name (sha=$checksum)"
+              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$file"
+              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q \
+                  -c "insert into public._migrations(name, checksum) values ('$name', '$checksum');"
+              echo "✓ $name zastosowana"
+              ANY_APPLIED=1
+          done
+
+          if [ "$ANY_APPLIED" = "0" ]; then
+              echo "Wszystkie migracje już aktualne."
+          else
+              echo "Lista zastosowanych migracji:"
+              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+                  -c "select name, applied_at, checksum from public._migrations order by name;"
+          fi
