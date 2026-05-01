@@ -532,12 +532,16 @@
         </div>
     </div>
 
-    <!-- Static <audio> tags for iOS — niektore wersje iOS dziala lepiej z tymi
-         niz z dynamicznie tworzonymi przez new Audio(). data-src ustawiamy
-         pozniej w JS gdy pierwszy raz potrzebujemy. -->
-    <audio id="snd-c" preload="auto" playsinline webkit-playsinline></audio>
-    <audio id="snd-w" preload="auto" playsinline webkit-playsinline></audio>
-    <audio id="snd-lvl" preload="auto" playsinline webkit-playsinline></audio>
+    <!-- Static <audio> tags z prawdziwymi plikami w sound/.
+         iOS lepiej obsluguje static elementy niz new Audio().
+         playsinline zeby nie wchodzilo w pelnoekranowy player iOS. -->
+    <audio id="snd-c"     preload="auto" playsinline webkit-playsinline src="sound/correct_answer.mp3"></audio>
+    <audio id="snd-w"     preload="auto" playsinline webkit-playsinline src="sound/wrong_answer.wav"></audio>
+    <audio id="snd-bip"   preload="auto" playsinline webkit-playsinline src="sound/bip.wav"></audio>
+    <audio id="snd-click" preload="auto" playsinline webkit-playsinline src="sound/click_on_mission_button.wav"></audio>
+    <audio id="snd-hover" preload="auto" playsinline webkit-playsinline src="sound/move_cursor_on_mission_button.wav"></audio>
+    <!-- Fallback dla 'lvl' (rewards) — używa tego samego correct_answer ale na razie zostaje stub -->
+    <audio id="snd-lvl"   preload="auto" playsinline webkit-playsinline src="sound/correct_answer.mp3"></audio>
 
     <!-- Supabase config (z GitHub Secrets w prod, lokalnie z config.js).
          Aplikacja dziala bez configu — wtedy 100% offline z localStorage. -->

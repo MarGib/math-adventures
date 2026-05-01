@@ -92,6 +92,45 @@
         }
     }
 
+    /** Telemetria urządzenia — co my zapisujemy dla każdej gry.
+        UA jest skracane do 220 znaków, nie zbieramy IP (Supabase RLS
+        i tak nie da klientowi tej info). Kategoria pomaga grupować. */
+    function getClientInfo() {
+        const sw = window.screen ? screen.width : 0;
+        const sh = window.screen ? screen.height : 0;
+        const vw = window.innerWidth || 0;
+        const vh = window.innerHeight || 0;
+        const dpr = window.devicePixelRatio || 1;
+        const ua = (navigator.userAgent || '').substring(0, 220);
+        const lang = navigator.language || '';
+        let tz = '';
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (_) {}
+
+        // Prosta kategoryzacja po szerokości viewportu i UA
+        let category = 'desktop';
+        if (/iPhone|iPod|Android.*Mobile/i.test(ua) || vw < 540) category = 'phone';
+        else if (/iPad|Android(?!.*Mobile)|Tablet/i.test(ua) || vw < 1024) category = 'tablet';
+
+        let platform = 'other';
+        if (/iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) platform = 'iOS';
+        else if (/Android/i.test(ua)) platform = 'Android';
+        else if (/Mac/i.test(ua)) platform = 'macOS';
+        else if (/Windows/i.test(ua)) platform = 'Windows';
+        else if (/Linux/i.test(ua)) platform = 'Linux';
+
+        return {
+            screen: `${sw}x${sh}`,
+            viewport: `${vw}x${vh}`,
+            dpr: Math.round(dpr * 100) / 100,
+            category,
+            platform,
+            lang,
+            tz,
+            ua,
+            ts: new Date().toISOString()
+        };
+    }
+
     async function cloudSaveResult(result) {
         if (!cloudReady || !cloudUser || !cloudUser.profile) return;
         try {
@@ -113,11 +152,58 @@
                 correct_count: correct,
                 wrong_count: wrong,
                 max_combo: maxCombo,
-                history: result.history
+                history: result.history,
+                client_info: getClientInfo()
             });
         } catch (e) {
             console.warn('[cloud] save failed:', e && e.message);
         }
+    }
+
+    /** Sprawdza czy nazwa jest wolna. Zwraca: 'free' | 'taken' | 'mine' | null (gdy bez chmury). */
+    async function cloudCheckUsername(name) {
+        if (!cloudReady || !sb) return null;
+        const trimmed = (name || '').trim();
+        if (trimmed.length < 2) return null;
+        try {
+            const { data, error } = await sb
+                .from('profiles')
+                .select('id')
+                .eq('username', trimmed)
+                .maybeSingle();
+            if (error) return null;
+            if (!data) return 'free';
+            if (cloudUser && data.id === cloudUser.id) return 'mine';
+            return 'taken';
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /** Generator losowej nazwy. Łączy przymiotnik + rzeczownik + opcjonalnie cyfra. */
+    const namePartAdj = ['Sprytny','Mądry','Szybki','Dzielny','Bystry','Czujny','Silny','Wesoły','Dziarski','Odważny','Zwinny','Cierpliwy','Pewny','Czujny','Pilny','Lotny','Sprawny','Niezłomny','Rączy','Jasny'];
+    const namePartNoun = ['Sowa','Lis','Tygrys','Smok','Panda','Jeleń','Ryś','Wilk','Wieloryb','Sokol','Kot','Pies','Konik','Niedźwiedź','Geniusz','Bohater','Wojownik','Mędrzec','Profesor','Mistrz'];
+
+    function generateRandomName() {
+        const adj = namePartAdj[Math.floor(Math.random() * namePartAdj.length)];
+        const noun = namePartNoun[Math.floor(Math.random() * namePartNoun.length)];
+        const suffix = Math.random() < 0.65 ? Math.floor(Math.random() * 99) : '';
+        return `${adj}${noun}${suffix}`;
+    }
+
+    /** Sugestie alternatyw dla zajętej nazwy. */
+    function suggestAlternatives(takenName) {
+        const base = (takenName || '').replace(/\s+/g, '').replace(/[^A-Za-z0-9_-]/g, '');
+        const out = new Set();
+        // 1) base + 2-3 cyfry
+        out.add(`${base}${Math.floor(Math.random() * 90 + 10)}`);
+        out.add(`${base}_${Math.floor(Math.random() * 900 + 100)}`);
+        // 2) przymiotnik + base
+        const adj = namePartAdj[Math.floor(Math.random() * namePartAdj.length)];
+        out.add(`${adj}${base}`);
+        // 3) całkiem losowa
+        out.add(generateRandomName());
+        return [...out].filter(n => n.length >= 2 && n.length <= 20).slice(0, 3);
     }
 
     async function cloudFetchGlobalTop(limit) {
@@ -432,29 +518,48 @@
         return 'data:audio/wav;base64,' + bufferToBase64(makeWav(data, sr));
     }
 
+    /** Mapa typ -> static <audio> id w HTML.
+        c=correct, w=wrong, bip=10s countdown, click=mission button,
+        hover=mission button cursor over, lvl=reward (uses correct sample). */
+    const audioTagIds = {
+        c: 'snd-c', w: 'snd-w', bip: 'snd-bip',
+        click: 'snd-click', hover: 'snd-hover', lvl: 'snd-lvl',
+    };
+
     let html5Audios = null;
     function getHtml5Audio(type) {
-        if (!html5Audios) {
-            // Preferuj STATIC <audio> tagi z HTML — iOS lepiej je obsluguje
-            // niz dynamicznie tworzone przez new Audio().
-            const tagId = 'snd-' + type;
-            const staticEl = document.getElementById(tagId);
-            html5Audios = { c: null, w: null, lvl: null };
-            ['c','w','lvl'].forEach(k => {
-                const id = 'snd-' + k;
-                let el = document.getElementById(id);
-                if (!el) el = new Audio();
-                el.src = buildSoundDataUri(k);
-                el.preload = 'auto';
-                el.playsInline = true;
-                el.setAttribute('playsinline', '');
-                el.setAttribute('webkit-playsinline', '');
-                el.volume = 0.95;
-                try { el.load(); } catch(_) {}
-                html5Audios[k] = el;
-            });
+        if (!html5Audios) html5Audios = {};
+        if (html5Audios[type]) return html5Audios[type];
+
+        // 1) Prefer static <audio> tag z HTML (juz ma src=sound/xxx).
+        const tagId = audioTagIds[type] || ('snd-' + type);
+        const staticEl = document.getElementById(tagId);
+        if (staticEl) {
+            staticEl.preload = 'auto';
+            staticEl.playsInline = true;
+            staticEl.setAttribute('playsinline', '');
+            staticEl.setAttribute('webkit-playsinline', '');
+            // Glosnosc per typ — bip ciszej zeby nie meczyl, hover bardzo cicho
+            staticEl.volume = (type === 'hover' ? 0.35 :
+                               type === 'bip'   ? 0.65 :
+                               type === 'click' ? 0.7  : 0.9);
+            try { staticEl.load(); } catch(_) {}
+            html5Audios[type] = staticEl;
+            return staticEl;
         }
-        return html5Audios[type];
+
+        // 2) Fallback: syntezowany WAV (tylko dla c/w/lvl — pozostale type'y
+        //    zwroca null jezeli static tag nie istnieje).
+        if (type === 'c' || type === 'w' || type === 'lvl') {
+            const a = new Audio(buildSoundDataUri(type));
+            a.preload = 'auto';
+            a.playsInline = true;
+            a.volume = 0.85;
+            try { a.load(); } catch(_) {}
+            html5Audios[type] = a;
+            return a;
+        }
+        return null;
     }
 
     /* ---- WebAudio (preferred) — uzywamy AudioBufferSourceNode zamiast
@@ -638,22 +743,31 @@
     }
 
     /** Glowny entry. Strategia:
-        - Na iOS: graj OBYDWA (WebAudio + HTML5) — daje 2x wieksza szanse
-          ze cos zagra. iOS bywa kapryśne i czasem jedna metoda zadziala
-          a druga nie.
-        - Na desktop / Android: tylko WebAudio (najczystszy dzwiek). */
+        - Type 'bip' / 'click' / 'hover': zawsze HTML5 z prawdziwymi plikami
+          (krotkie probki nagrane, nie da sie zsyntezowac sensownie)
+        - Type 'c' / 'w' / 'lvl': mamy prawdziwy plik W static tag,
+          ALE na desktop/Android probujemy najpierw WebAudio (z PCM
+          syntez ktory mamy w buforach) bo daje precyzyjna kontrole;
+          jezeli static tag istnieje uzywamy go zamiast PCM —
+          prawdziwy nagrany dzwiek brzmi lepiej. */
     function playSound(type) {
-        const ios = isIOSDevice();
+        if (type === 'bip' || type === 'click' || type === 'hover') {
+            playHtml5(type);
+            return;
+        }
 
-        // HTML5 Audio path
-        if (ios) {
+        const ios = isIOSDevice();
+        // Na iOS lub gdy mamy prawdziwy plik dzwiekowy — uzyj HTML5.
+        const hasStaticFile = !!document.getElementById(audioTagIds[type]);
+        if (ios || hasStaticFile) {
             playHtml5(type);
         }
 
-        // WebAudio path
+        // Na desktop dodatkowo WebAudio (jezeli nie mamy pliku) jako PCM synth.
+        if (hasStaticFile) return;
         const ctx = ensureAudioCtx();
         if (!ctx) {
-            if (!ios) playHtml5(type); // non-ios fallback
+            if (!ios) playHtml5(type);
             return;
         }
         const tryWebAudio = () => {
@@ -687,9 +801,11 @@
                     } catch (_) {}
                 }).catch(() => {});
             }
-            // "Touch" HTML5 audio elements w user-gesture context — iOS to zapamietuje.
-            getHtml5Audio('c'); getHtml5Audio('w'); getHtml5Audio('lvl');
-            ['c','w','lvl'].forEach(k => {
+            // "Touch" wszystkie HTML5 audio w user-gesture context — iOS to zapamietuje
+            // i pozwoli pozniej odtwarzac bez kolejnego user-gesture.
+            const types = ['c','w','lvl','bip','click','hover'];
+            types.forEach(k => getHtml5Audio(k));
+            types.forEach(k => {
                 const a = html5Audios && html5Audios[k];
                 if (!a) return;
                 try {
@@ -1122,7 +1238,15 @@
         const minutes = Math.floor(remaining / 60);
         const seconds = remaining % 60;
         timer.textContent = `${minutes}:${seconds < 10 ? `0${seconds}` : seconds}`;
-        timer.classList.toggle("is-urgent", remaining <= 10);
+        const urgent = remaining <= 10;
+        timer.classList.toggle("is-urgent", urgent);
+
+        // Bip co sekunde w ostatnich 10s — tylko jezeli nowa sekunda
+        // (nie powtarza tego samego sample podczas tego samego ticku).
+        if (urgent && remaining >= 1 && remaining !== gameState._lastBipAt) {
+            gameState._lastBipAt = remaining;
+            playSound('bip');
+        }
     }
 
     /** Generuje jedno losowe pytanie. Wynik jest CZYSTY (nie modyfikuje stanu). */
@@ -1533,6 +1657,20 @@
         });
     }
 
+    /** Throttled hover handler — nie chcemy odtwarzac za kazdym
+        mousemove, tylko raz na wjazd kursora na element (mouseenter). */
+    function bindMissionAudioHooks() {
+        const supportsHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        document.querySelectorAll('.btn-mode').forEach((btn) => {
+            // Click sound ON CAPTURE phase — gra przed handlerem startGame
+            // zeby uzytkownik uslyszal nawet jezeli ekran szybko sie zmieni.
+            btn.addEventListener('pointerdown', () => playSound('click'));
+            if (supportsHover) {
+                btn.addEventListener('mouseenter', () => playSound('hover'));
+            }
+        });
+    }
+
     function bindClickHandlers() {
         document.querySelectorAll('[data-action]').forEach((el) => {
             const action = el.dataset.action;
@@ -1651,12 +1789,11 @@
         initHeroParallax();
         bindAvatarPicker();
         bindClickHandlers();
+        bindMissionAudioHooks();
         startQuoteRotation();
         renderProfileTopList();
         renderWelcomeBack();
         installAudioUnlockGestureHooks();
-        // Asynchroniczna inicjalizacja chmury — gra startuje natychmiast,
-        // chmura jest "best effort". Jezeli sie powiedzie — bonus features.
         initCloud().then(() => {
             if (cloudReady) console.info('[cloud] connected as', cloudUser && cloudUser.id);
         });
