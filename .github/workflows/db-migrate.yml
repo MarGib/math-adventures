@@ -31,25 +31,50 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client
 
-      - name: Verify secret is configured
+      - name: Prepare connection URL
         env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          RAW_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          if [ -z "${DATABASE_URL:-}" ]; then
+          set -euo pipefail
+          if [ -z "${RAW_URL:-}" ]; then
               echo "::error::SUPABASE_DB_URL secret nie jest ustawiony."
-              echo "Wejdz na github.com/MarGib/math-adventures/settings/secrets/actions i dodaj SUPABASE_DB_URL."
-              echo "Wartosc: Supabase Dashboard -> Project Settings -> Database -> Connection String -> URI (Direct connection)"
+              echo "Settings -> Secrets and variables -> Actions -> New repo secret"
+              echo "Wartosc: Supabase Dashboard -> Project Settings -> Database -> Connection String -> URI"
               exit 1
           fi
+          # Supabase Postgres wymaga SSL. Dodaj sslmode=require jezeli go nie ma.
+          DB_URL="$RAW_URL"
+          if ! echo "$DB_URL" | grep -q 'sslmode='; then
+              if echo "$DB_URL" | grep -q '?'; then
+                  DB_URL="${DB_URL}&sslmode=require"
+              else
+                  DB_URL="${DB_URL}?sslmode=require"
+              fi
+          fi
+          # Maskuj hasło w logach
+          MASKED=$(echo "$DB_URL" | sed -E 's|://([^:]+):[^@]+@|://\1:****@|')
+          echo "DB URL (masked): $MASKED"
+          # Wystaw do nastepnego stepu przez GITHUB_ENV (multiline-safe)
+          {
+              echo "DB_URL<<__EOL__"
+              echo "$DB_URL"
+              echo "__EOL__"
+          } >> "$GITHUB_ENV"
+
+      - name: Test connection
+        run: |
+          set -euo pipefail
+          echo "→ select version() ..."
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A -c "select version();"
+          echo "→ current database / user ..."
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A -c "select current_database(), current_user;"
 
       - name: Apply migrations in order
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -euo pipefail
 
-          # 1) Stworz tabele _migrations jezeli jeszcze nie ma
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c "
+          echo "=== Krok 1: tabela meta _migrations ==="
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -c "
             create table if not exists public._migrations (
                 name text primary key,
                 applied_at timestamptz not null default now(),
@@ -57,39 +82,46 @@ jobs:
             );
           "
 
-          # 2) Iteruj po plikach .sql w kolejnosci alfabetycznej (0001, 0002, ...)
+          echo "=== Krok 2: lista plikow ==="
           shopt -s nullglob
           files=(supabase/migrations/*.sql)
           if [ ${#files[@]} -eq 0 ]; then
-              echo "Brak plikow migracji w supabase/migrations/"
+              echo "Brak plikow migracji."
               exit 0
           fi
+          for file in $(printf '%s\n' "${files[@]}" | sort); do
+              echo "  - $(basename "$file") ($(wc -l < "$file") linii)"
+          done
 
-          ANY_APPLIED=0
+          echo ""
+          echo "=== Krok 3: wgrywanie ==="
           for file in $(printf '%s\n' "${files[@]}" | sort); do
               name=$(basename "$file")
               checksum=$(sha256sum "$file" | cut -c1-16)
 
-              applied_count=$(psql "$DATABASE_URL" -t -A -v ON_ERROR_STOP=1 \
-                  -c "select count(*) from public._migrations where name = '$name';")
-
-              if [ "$applied_count" = "1" ]; then
+              applied=$(psql "$DB_URL" -v ON_ERROR_STOP=1 -t -A \
+                  -c "select count(*) from public._migrations where name = '\$\$$name\$\$';" 2>/dev/null || echo "0")
+              # ^^ dolar-quoted string zeby uniknac problemow z apostrofami w nazwach
+              if [ "$applied" = "1" ]; then
                   echo "✓ $name już zastosowana — pomijam"
                   continue
               fi
 
+              echo ""
+              echo "──────────────────────────────────────────────────"
               echo "→ Wgrywam $name (sha=$checksum)"
-              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f "$file"
-              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -q \
+              echo "──────────────────────────────────────────────────"
+              # Uruchom z echo zapytan, zeby w razie bledu bylo widac ktora linia padla
+              if ! psql "$DB_URL" -v ON_ERROR_STOP=1 --echo-errors -f "$file"; then
+                  echo "::error::Migracja $name nie powiodla sie. Zobacz log powyzej."
+                  exit 1
+              fi
+              psql "$DB_URL" -v ON_ERROR_STOP=1 \
                   -c "insert into public._migrations(name, checksum) values ('$name', '$checksum');"
               echo "✓ $name zastosowana"
-              ANY_APPLIED=1
           done
 
-          if [ "$ANY_APPLIED" = "0" ]; then
-              echo "Wszystkie migracje już aktualne."
-          else
-              echo "Lista zastosowanych migracji:"
-              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
-                  -c "select name, applied_at, checksum from public._migrations order by name;"
-          fi
+          echo ""
+          echo "=== Stan koncowy ==="
+          psql "$DB_URL" -v ON_ERROR_STOP=1 \
+              -c "select name, applied_at, checksum from public._migrations order by name;"
