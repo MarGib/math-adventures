@@ -31,67 +31,61 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq postgresql-client
 
-      - name: Prepare connection (separate components, no URL-encoding needed)
+      - name: Prepare connection (Supabase Pooler — IPv4)
         env:
           DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-          DB_URL_LEGACY: ${{ secrets.SUPABASE_DB_URL }}
+          DB_HOST: ${{ secrets.SUPABASE_DB_HOST }}
           PROJECT_URL: ${{ secrets.SUPABASE_URL }}
         run: |
           set -euo pipefail
 
-          # Pierwsza opcja: nowe oddzielne secrety (PREFEROWANE — brak URL-encoding)
-          if [ -n "${DB_PASSWORD:-}" ] && [ -n "${PROJECT_URL:-}" ]; then
-              # Wycinamy projectref z https://<ref>.supabase.co
-              REF=$(echo "$PROJECT_URL" | sed -E 's|^https?://([^.]+)\.supabase\.co.*$|\1|')
-              if [ -z "$REF" ] || [ "$REF" = "$PROJECT_URL" ]; then
-                  echo "::error::Nie udalo sie wyciagnac project ref z SUPABASE_URL='$PROJECT_URL'"
-                  exit 1
-              fi
-              {
-                  echo "PGHOST=db.${REF}.supabase.co"
-                  echo "PGPORT=5432"
-                  echo "PGUSER=postgres"
-                  echo "PGDATABASE=postgres"
-                  echo "PGSSLMODE=require"
-                  echo "PGPASSWORD<<__EOL__"
-                  echo "$DB_PASSWORD"
-                  echo "__EOL__"
-              } >> "$GITHUB_ENV"
-              echo "Polaczenie skonfigurowane dla db.${REF}.supabase.co:5432 (uzytkownik postgres, SSL on)"
-              exit 0
+          if [ -z "${DB_PASSWORD:-}" ] || [ -z "${DB_HOST:-}" ] || [ -z "${PROJECT_URL:-}" ]; then
+              echo "::error::Brakuje sekretu(ow) do polaczenia z baza."
+              echo ""
+              echo "POTRZEBNE SEKRETY (Settings -> Secrets and variables -> Actions):"
+              echo "  1) SUPABASE_URL          — masz ✓"
+              echo "  2) SUPABASE_DB_PASSWORD  — surowe haslo do bazy"
+              echo "  3) SUPABASE_DB_HOST      — hostname Connection Poolera"
+              echo ""
+              echo "JAK ZNALEZC SUPABASE_DB_HOST:"
+              echo "  Supabase Dashboard -> Project Settings -> Database"
+              echo "  Sekcja 'Connection pooling' -> Connection string -> Session pooler"
+              echo "  Skopiuj host (np. 'aws-0-eu-west-1.pooler.supabase.com')"
+              echo "  TYLKO host, bez 'postgresql://' i bez ':5432' itp."
+              echo ""
+              echo "Direct connection (db.<ref>.supabase.co) NIE dziala bo Supabase Free"
+              echo "ma IPv6-only direct, a runnery GitHub Actions maja tylko IPv4."
+              echo "Dlatego musimy uzyc Pooler (wspiera IPv4)."
+              exit 1
           fi
 
-          # Fallback: stary SUPABASE_DB_URL (jezeli ktos go ma i haslo BEZ znakow specjalnych)
-          if [ -n "${DB_URL_LEGACY:-}" ]; then
-              DB_URL="$DB_URL_LEGACY"
-              if ! echo "$DB_URL" | grep -q 'sslmode='; then
-                  if echo "$DB_URL" | grep -q '?'; then
-                      DB_URL="${DB_URL}&sslmode=require"
-                  else
-                      DB_URL="${DB_URL}?sslmode=require"
-                  fi
-              fi
-              MASKED=$(echo "$DB_URL" | sed -E 's|://([^:]+):[^@]+@|://\1:****@|')
-              echo "Uzywam legacy URL: $MASKED"
-              echo "UWAGA: jezeli haslo ma znaki & % @ : / itp. - lepiej przelacz sie na SUPABASE_DB_PASSWORD"
-              {
-                  echo "DB_URL<<__EOL__"
-                  echo "$DB_URL"
-                  echo "__EOL__"
-              } >> "$GITHUB_ENV"
-              exit 0
+          # Wyciagnij project ref z URL: https://<ref>.supabase.co
+          REF=$(echo "$PROJECT_URL" | sed -E 's|^https?://([^.]+)\.supabase\.co.*$|\1|')
+          if [ -z "$REF" ] || [ "$REF" = "$PROJECT_URL" ]; then
+              echo "::error::Nie udalo sie wyciagnac project ref z SUPABASE_URL='$PROJECT_URL'"
+              exit 1
           fi
 
-          echo "::error::Brak konfiguracji polaczenia z baza."
-          echo ""
-          echo "DODAJ DWA SEKRETY (Settings -> Secrets and variables -> Actions):"
-          echo "  1) SUPABASE_URL          (juz masz — sprawdz czy istnieje)"
-          echo "  2) SUPABASE_DB_PASSWORD  — surowe haslo z Supabase Dashboard ->"
-          echo "                              Project Settings -> Database -> Connection String"
-          echo "                              SKOPIUJ TYLKO HASLO, BEZ URL-encodingu."
-          echo ""
-          echo "Mozesz USUNAC stary SUPABASE_DB_URL — nie jest juz potrzebny."
-          exit 1
+          # Pooler user format: postgres.<project-ref>
+          PG_USER="postgres.${REF}"
+
+          {
+              echo "PGHOST=${DB_HOST}"
+              echo "PGPORT=5432"
+              echo "PGUSER=${PG_USER}"
+              echo "PGDATABASE=postgres"
+              echo "PGSSLMODE=require"
+              echo "PGPASSWORD<<__EOL__"
+              echo "$DB_PASSWORD"
+              echo "__EOL__"
+          } >> "$GITHUB_ENV"
+
+          echo "Polaczenie przygotowane:"
+          echo "  Host:     ${DB_HOST}"
+          echo "  Port:     5432 (Session pooler — wspiera DDL)"
+          echo "  User:     ${PG_USER}"
+          echo "  Database: postgres"
+          echo "  SSL:      require"
 
       - name: Test connection
         run: |
