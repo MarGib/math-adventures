@@ -45,10 +45,6 @@
             <!-- ============== PROFILE SCREEN ============== -->
             <div id="screen-profile" class="screen">
                 <button class="fullscreen-btn" type="button" aria-label="Pełny ekran" data-action="toggleFullScreen">⛶</button>
-                <button class="cloud-status-pill" type="button" id="cloud-status-pill" data-action="showAccount" aria-label="Status synchronizacji">
-                    <span class="cloud-dot"></span>
-                    <span class="cloud-label" id="cloud-status-label">offline</span>
-                </button>
 
                 <div class="profile-main">
                     <section class="panel-card welcome-back" id="welcome-back" style="display:none;">
@@ -66,7 +62,13 @@
 
                     <section class="panel-card hero-panel">
                         <div class="hero-copy">
-                            <div class="hero-topline">Matematyczna misja dnia</div>
+                            <div class="hero-topline-row">
+                                <div class="hero-topline">Matematyczna misja dnia</div>
+                                <button class="cloud-status-pill" type="button" id="cloud-status-pill" data-action="showAccount" aria-label="Status synchronizacji">
+                                    <span class="cloud-dot"></span>
+                                    <span class="cloud-label" id="cloud-status-label">offline</span>
+                                </button>
+                            </div>
                             <h1>Matematyczna Przygoda</h1>
                             <p class="hero-subtitle">Kolorowa i dynamiczna gra do ćwiczenia liczenia, koncentracji i matematycznej pewności siebie. Dla dzieci, młodzieży i dorosłych.</p>
                             <div id="quote-box">

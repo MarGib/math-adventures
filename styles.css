@@ -2294,13 +2294,21 @@ select {
 }
 
 /* ============================================================
-   CLOUD STATUS PILL — w prawym gornym rogu profilu
+   CLOUD STATUS PILL — inline w hero-topline (nie absolute!)
    ============================================================ */
+.hero-topline-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.hero-topline-row .hero-topline {
+    margin-bottom: 0;
+}
+
 .cloud-status-pill {
-    position: absolute;
-    top: 14px;
-    right: 70px; /* fullscreen-btn jest na 18px, dajemy margines */
-    z-index: 10;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -2315,7 +2323,7 @@ select {
     cursor: pointer;
     box-shadow: var(--shadow-sm);
     transition: transform 0.2s var(--ease-spring), box-shadow 0.2s ease;
-    max-width: 200px;
+    max-width: 220px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2360,9 +2368,9 @@ select {
 
 @media (max-width: 520px) {
     .cloud-status-pill {
-        right: 60px;
         font-size: 11px;
         padding: 5px 10px;
+        max-width: 160px;
     }
 }
 
