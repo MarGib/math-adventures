@@ -2308,6 +2308,18 @@ select {
     margin-bottom: 0;
 }
 
+/* Mobile: hero-topline-row wycentruj i pill pod kicker'em (a nie z boku) */
+@media (max-width: 760px) {
+    .hero-topline-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    .hero-topline-row .hero-topline {
+        margin: 0;
+    }
+}
+
 .cloud-status-pill {
     display: inline-flex;
     align-items: center;
