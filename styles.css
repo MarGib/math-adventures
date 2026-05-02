@@ -828,6 +828,14 @@ select {
     line-height: 1;
 }
 
+/* Avatar-panel jako flex column zeby siatka mogla sie prawidlowo
+   skurczyc do dostepnej przestrzeni i scrollowac WEWNATRZ. */
+.avatar-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
 .avatar-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -835,12 +843,16 @@ select {
     max-width: 480px;
     margin: 0 auto;
     width: 100%;
-    max-height: 320px;
+    /* Adaptacyjna wysokosc — na tall desktopie maks 360, na shortym min 200,
+       40vh sweet spot pomiedzy. min-height: 0 wymagane do flex scroll. */
+    max-height: clamp(220px, 40vh, 380px);
+    min-height: 0;
     overflow-y: auto;
     padding: 4px;
     scroll-behavior: smooth;
     scrollbar-width: thin;
     scrollbar-color: rgba(15, 118, 110, 0.4) transparent;
+    flex: 1 1 auto;
 }
 
 .avatar-grid::-webkit-scrollbar { width: 6px; }
@@ -3322,8 +3334,14 @@ select {
 
     /* Profile form */
     .input-name { padding: 10px 14px; font-size: 16px; }
-    .avatar-grid { gap: 6px; max-width: 420px; }
+    .avatar-grid {
+        gap: 6px;
+        max-width: 420px;
+        max-height: clamp(180px, 32vh, 300px);
+    }
     .avatar-option { font-size: clamp(28px, 4.2vmin, 52px); border-radius: 10px; }
+    .avatar-search { padding: 7px 12px; font-size: 13px; }
+    .avatar-current { width: 48px; height: 48px; font-size: 30px; border-radius: 12px; }
 
     /* Player summary */
     .player-avatar { width: 56px; height: 56px; font-size: 30px; border-radius: 14px; }
