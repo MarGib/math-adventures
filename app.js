@@ -47,24 +47,31 @@
                 { auth: { persistSession: true, autoRefreshToken: true } }
             );
 
-            // Spróbuj pobrać aktualną sesję, jeśli nie ma — zaloguj anonimowo
             const { data: { session } } = await sb.auth.getSession();
             if (!session) {
-                const { data, error } = await sb.auth.signInAnonymously();
+                const { error } = await sb.auth.signInAnonymously();
                 if (error) throw error;
             }
-            const { data: { user: authUser } } = await sb.auth.getUser();
-            if (!authUser) return;
-
-            // Spróbuj wczytać profil
-            const { data: profile } = await sb
-                .from('profiles')
-                .select('id, username, avatar, display_name')
-                .eq('id', authUser.id)
-                .maybeSingle();
-
-            cloudUser = { id: authUser.id, profile };
             cloudReady = true;
+            await refreshCloudUser();
+
+            // Jezeli zalogowany trwale i mamy profile -> ustaw user state z tego
+            if (cloudUser && cloudUser._persistent && cloudUser.profile) {
+                user.name = cloudUser.profile.username;
+                user.avatar = cloudUser.profile.avatar || user.avatar;
+                // Aktualizuj UI (avatar grid + form)
+                const usernameInput = document.getElementById('username');
+                if (usernameInput) usernameInput.value = user.name;
+                document.querySelectorAll('.avatar-option').forEach(el => {
+                    el.classList.toggle('selected', el.textContent.trim() === user.avatar);
+                });
+            }
+
+            // Realtime sluchanie zmian sesji (sign in z innej karty etc.)
+            sb.auth.onAuthStateChange(async () => {
+                await refreshCloudUser();
+                updateCloudStatusPill();
+            });
         } catch (e) {
             console.warn('[cloud] init failed, going offline-only:', e && e.message);
             cloudReady = false;
@@ -219,6 +226,154 @@
             console.warn('[cloud] fetch top failed:', e && e.message);
             return [];
         }
+    }
+
+    /* ---- Auth: username + password (synthetic email) ----
+       Supabase auth wymaga email; fabrykujemy go z username i wewnetrznej
+       domeny .invalid (ktora nigdy nie istnieje w prawdziwym DNS). Email
+       opcjonalny do recovery jest TRZYMANY OBOK — w profile.email kolumna.
+       Anonimowy user moze upgrade'owac konto bez tracenia danych przez
+       updateUser({email, password}) — UID zostaje. */
+    function syntheticEmailFor(username) {
+        const safe = String(username).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        return `${safe}@math-adv.invalid`;
+    }
+
+    function isPersistentUser() {
+        // Persistent = ma email/haslo (czyli nie jest is_anonymous w aud)
+        if (!cloudReady || !sb) return false;
+        // Supabase v2: user.is_anonymous = true gdy signInAnonymously
+        const u = (sb.auth.getUser ? null : null);
+        // Poniewaz getUser jest async, sprawdzamy z lokalnej zmiennej
+        return !!(cloudUser && cloudUser.profile && cloudUser._persistent);
+    }
+
+    async function refreshCloudUser() {
+        if (!sb) return;
+        try {
+            const { data: { user: u } } = await sb.auth.getUser();
+            if (!u) { cloudUser = null; return; }
+            const { data: profile } = await sb
+                .from('profiles')
+                .select('id, username, avatar, display_name, email')
+                .eq('id', u.id)
+                .maybeSingle();
+            cloudUser = {
+                id: u.id,
+                profile,
+                _persistent: !u.is_anonymous,
+                _email: u.email
+            };
+        } catch (e) {
+            console.warn('[cloud] refreshCloudUser failed', e && e.message);
+        }
+    }
+
+    async function cloudSignUp(username, password, email) {
+        if (!cloudReady) throw new Error('Chmura niedostępna');
+        const synth = syntheticEmailFor(username);
+
+        // Sprawdz czy nazwa juz zajeta przez kogos innego
+        const status = await cloudCheckUsername(username);
+        if (status === 'taken') {
+            throw new Error(`Nazwa "${username}" jest już zajęta`);
+        }
+
+        // Jezeli mamy aktywna anonimowa sesje — upgrade'uj zamiast signUp
+        const { data: { user: current } } = await sb.auth.getUser();
+
+        let resultUser;
+        if (current && current.is_anonymous) {
+            // updateUser przeksztalci anon na permanent BEZ utraty UID
+            const { data, error } = await sb.auth.updateUser({
+                email: synth,
+                password
+            });
+            if (error) throw error;
+            resultUser = data.user;
+        } else {
+            // Brak sesji albo juz zalogowany jako ktos inny — czysty signUp
+            const { data, error } = await sb.auth.signUp({
+                email: synth, password
+            });
+            if (error) throw error;
+            resultUser = data.user;
+        }
+
+        if (!resultUser) throw new Error('Nie udało się utworzyć konta');
+
+        // Zarezerwuj nazwe + zapisz email (jezeli podany)
+        const claimed = await cloudClaimUsername(username, user.avatar);
+        if (!claimed) throw new Error(`Nazwa "${username}" jest już zajęta`);
+
+        // Zapis email do profile (opcjonalny, do recovery)
+        if (email && email.trim()) {
+            try {
+                await sb.from('profiles')
+                    .update({ email: email.trim().toLowerCase() })
+                    .eq('id', resultUser.id);
+            } catch (_) {}
+        }
+
+        await refreshCloudUser();
+        return cloudUser;
+    }
+
+    async function cloudSignIn(username, password) {
+        if (!cloudReady) throw new Error('Chmura niedostępna');
+        const synth = syntheticEmailFor(username);
+        // Wyloguj obecna sesje (anon) zeby moc zalogowac sie jako kto inny
+        try { await sb.auth.signOut(); } catch (_) {}
+
+        const { data, error } = await sb.auth.signInWithPassword({
+            email: synth, password
+        });
+        if (error) {
+            if (/Invalid login credentials/i.test(error.message)) {
+                throw new Error('Nieprawidłowa nazwa lub hasło');
+            }
+            throw error;
+        }
+        await refreshCloudUser();
+        if (cloudUser && cloudUser.profile) {
+            user.name = cloudUser.profile.username;
+            user.avatar = cloudUser.profile.avatar || user.avatar;
+        }
+        return cloudUser;
+    }
+
+    async function cloudSignOut() {
+        if (!cloudReady) return;
+        try { await sb.auth.signOut(); } catch (_) {}
+        // Stworz nowa anonimowa sesje zeby gra dalej dzialala
+        try {
+            await sb.auth.signInAnonymously();
+            await refreshCloudUser();
+        } catch (_) {}
+    }
+
+    /** Aktualizuje wskaznik chmury w UI. */
+    function updateCloudStatusPill() {
+        const pill = document.getElementById('cloud-status-pill');
+        const label = document.getElementById('cloud-status-label');
+        if (!pill || !label) return;
+        pill.classList.remove('is-online', 'is-offline', 'is-error');
+        if (!cloudReady) {
+            pill.classList.add('is-offline');
+            label.textContent = 'tylko lokalnie';
+            pill.title = 'Brak połączenia z chmurą — wyniki tylko na tym urządzeniu';
+            return;
+        }
+        if (cloudUser && cloudUser._persistent && cloudUser.profile) {
+            pill.classList.add('is-online');
+            label.textContent = `🌐 ${cloudUser.profile.username}`;
+            pill.title = 'Zalogowany — wyniki synchronizują się ze wszystkimi urządzeniami';
+            return;
+        }
+        // Anon w chmurze — wyniki idą do globalnego rankingu, ale tylko z tego urządzenia
+        pill.classList.add('is-online');
+        label.textContent = '🌐 anonimowo';
+        pill.title = 'Zarejestruj konto aby grać na innych urządzeniach';
     }
 
     const confettiColors = ["#0F766E", "#3730A3", "#D97706", "#0EA5E9", "#10B981", "#F59E0B"];
@@ -718,6 +873,157 @@
                 diag.classList.add('is-shown');
             }
         }, 200);
+    }
+
+    /* ---- ACCOUNT modal ---- */
+    function showAccount() {
+        const modal = document.getElementById('modal-account');
+        if (!modal) return;
+
+        // Wyczysc statusy
+        ['acc-signup-status', 'acc-signin-status'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.textContent = ''; el.className = 'acc-status'; }
+        });
+
+        // Jezeli juz zalogowany trwale — pokaz info + przycisk Wyloguj
+        const signupTab = document.getElementById('acc-tab-signup');
+        const signupInfo = document.getElementById('acc-signup-info');
+        if (cloudUser && cloudUser._persistent && cloudUser.profile && signupInfo) {
+            signupInfo.innerHTML = `
+                ✓ Jesteś zalogowany jako <strong>${escapeHtml(cloudUser.profile.username)}</strong>.
+                Twoje wyniki synchronizują się z chmurą.
+                <br><br>
+                <button class="btn-big btn-secondary" type="button" data-action="accountSignOut">Wyloguj się</button>
+            `;
+            // Podepnij handler do tego przycisku
+            const btn = signupInfo.querySelector('button');
+            if (btn) btn.addEventListener('click', accountSignOut);
+        } else if (signupInfo && cloudReady) {
+            signupInfo.innerHTML = 'Zachowamy Twoje dotychczasowe wyniki i powiążemy je z trwałym kontem. Dzięki temu możesz grać na innych urządzeniach i rywalizować w globalnym rankingu.';
+        } else if (signupInfo) {
+            signupInfo.innerHTML = '⚠️ Brak połączenia z chmurą — funkcja kont chwilowo niedostępna.';
+        }
+
+        // Prefill nazwy z formularza profilu
+        const nameInput = document.getElementById('acc-signup-name');
+        const profileInput = document.getElementById('username');
+        if (nameInput && profileInput && profileInput.value) {
+            nameInput.value = profileInput.value;
+        }
+
+        accountTab('signup');
+        modal.style.display = 'flex';
+    }
+
+    function closeAccount() {
+        const modal = document.getElementById('modal-account');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function accountTab(name) {
+        document.querySelectorAll('#modal-account .tab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.tab === name);
+        });
+        ['signup', 'signin'].forEach(t => {
+            const el = document.getElementById('acc-tab-' + t);
+            if (el) el.style.display = (t === name ? 'flex' : 'none');
+        });
+    }
+
+    function setAccStatus(id, text, kind) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'acc-status is-shown' + (kind ? ` is-${kind}` : '');
+    }
+
+    function accountSuggestName() {
+        const name = generateRandomName();
+        const input = document.getElementById('acc-signup-name');
+        if (input) {
+            input.value = name;
+            input.focus();
+        }
+    }
+
+    async function accountSignUp() {
+        const name = (document.getElementById('acc-signup-name').value || '').trim();
+        const pass = document.getElementById('acc-signup-pass').value || '';
+        const email = (document.getElementById('acc-signup-email').value || '').trim();
+        const usernameOk = /^[A-Za-z0-9_-]{2,20}$/.test(name);
+
+        if (!usernameOk) {
+            setAccStatus('acc-signup-status', 'Nazwa: 2-20 znaków, tylko litery, cyfry, _ i -', 'bad');
+            return;
+        }
+        if (pass.length < 6) {
+            setAccStatus('acc-signup-status', 'Hasło musi mieć minimum 6 znaków', 'bad');
+            return;
+        }
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setAccStatus('acc-signup-status', 'Nieprawidłowy format e-maila', 'bad');
+            return;
+        }
+
+        setAccStatus('acc-signup-status', '⏳ Tworzę konto...', 'info');
+
+        try {
+            await cloudSignUp(name, pass, email);
+            user.name = name;
+            // Zaktualizuj formularz profilu
+            const profileInput = document.getElementById('username');
+            if (profileInput) profileInput.value = name;
+            saveLastUser();
+            renderWelcomeBack();
+            updateCloudStatusPill();
+            setAccStatus('acc-signup-status', `✓ Konto utworzone! Witaj, ${name}.`, 'good');
+            setTimeout(() => closeAccount(), 1500);
+        } catch (e) {
+            setAccStatus('acc-signup-status', '⚠ ' + (e.message || 'Nie udało się stworzyć konta'), 'bad');
+        }
+    }
+
+    async function accountSignIn() {
+        const name = (document.getElementById('acc-signin-name').value || '').trim();
+        const pass = document.getElementById('acc-signin-pass').value || '';
+
+        if (!name || !pass) {
+            setAccStatus('acc-signin-status', 'Podaj nazwę i hasło', 'bad');
+            return;
+        }
+
+        setAccStatus('acc-signin-status', '⏳ Loguję...', 'info');
+
+        try {
+            await cloudSignIn(name, pass);
+            // Zaktualizuj formularz profilu
+            const profileInput = document.getElementById('username');
+            if (profileInput) profileInput.value = user.name;
+            document.querySelectorAll('.avatar-option').forEach(el =>
+                el.classList.toggle('selected', el.textContent.trim() === user.avatar)
+            );
+            saveLastUser();
+            renderWelcomeBack();
+            renderProfileTopList();
+            updateCloudStatusPill();
+            setAccStatus('acc-signin-status', `✓ Witaj z powrotem, ${user.name}!`, 'good');
+            setTimeout(() => closeAccount(), 1500);
+        } catch (e) {
+            setAccStatus('acc-signin-status', '⚠ ' + (e.message || 'Logowanie nieudane'), 'bad');
+        }
+    }
+
+    async function accountSignOut() {
+        if (!confirm('Wylogować się? Wrócisz do trybu anonimowego — wyniki nadal będą synchronizować się z chmurą, ale nie będą widoczne na innych urządzeniach.')) return;
+        try {
+            await cloudSignOut();
+            updateCloudStatusPill();
+            renderWelcomeBack();
+            closeAccount();
+        } catch (e) {
+            alert('Nie udało się wylogować: ' + (e.message || ''));
+        }
     }
 
     function settingsClearData() {
@@ -1703,6 +2009,13 @@
                     case 'closeSettings': closeSettings(); break;
                     case 'settingsTestSound': settingsTestSound(); break;
                     case 'settingsClearData': settingsClearData(); break;
+                    case 'showAccount': showAccount(); break;
+                    case 'closeAccount': closeAccount(); break;
+                    case 'accountTab': accountTab(arg); break;
+                    case 'accountSignUp': accountSignUp(); break;
+                    case 'accountSignIn': accountSignIn(); break;
+                    case 'accountSignOut': accountSignOut(); break;
+                    case 'accountSuggestName': accountSuggestName(); break;
                     case 'closeReportSmart': {
                         // Archive view (came from leaderboard) -> back to leaderboard.
                         // Live view (just finished a game) -> close & go to setup.
@@ -1795,8 +2108,11 @@
         renderWelcomeBack();
         installAudioUnlockGestureHooks();
         initCloud().then(() => {
-            if (cloudReady) console.info('[cloud] connected as', cloudUser && cloudUser.id);
+            if (cloudReady) console.info('[cloud] connected as', cloudUser && cloudUser.id, cloudUser && cloudUser._persistent ? '(persistent)' : '(anonymous)');
+            updateCloudStatusPill();
         });
+        // Wstepny stan offline dopóki initCloud nie skończy
+        updateCloudStatusPill();
     }
 
     if (document.readyState === 'loading') {

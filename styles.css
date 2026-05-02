@@ -2294,6 +2294,166 @@ select {
 }
 
 /* ============================================================
+   CLOUD STATUS PILL — w prawym gornym rogu profilu
+   ============================================================ */
+.cloud-status-pill {
+    position: absolute;
+    top: 14px;
+    right: 70px; /* fullscreen-btn jest na 18px, dajemy margines */
+    z-index: 10;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    padding: 6px 12px;
+    border-radius: var(--r-pill);
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--ink-muted);
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s var(--ease-spring), box-shadow 0.2s ease;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cloud-status-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.cloud-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--ink-faint);
+    flex-shrink: 0;
+}
+
+.cloud-status-pill.is-online .cloud-dot {
+    background: var(--good);
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.5);
+    animation: cloudPulse 2s ease-in-out infinite;
+}
+
+.cloud-status-pill.is-online {
+    color: var(--c-teal-dark);
+    border-color: rgba(15, 118, 110, 0.25);
+}
+
+.cloud-status-pill.is-offline .cloud-dot {
+    background: var(--ink-faint);
+}
+
+.cloud-status-pill.is-error .cloud-dot {
+    background: var(--bad);
+}
+
+@keyframes cloudPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.5); }
+    50%      { box-shadow: 0 0 0 5px rgba(5, 150, 105, 0); }
+}
+
+@media (max-width: 520px) {
+    .cloud-status-pill {
+        right: 60px;
+        font-size: 11px;
+        padding: 5px 10px;
+    }
+}
+
+/* ============================================================
+   MODAL ACCOUNT (logowanie / rejestracja)
+   ============================================================ */
+.acc-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.acc-info {
+    background: rgba(15, 118, 110, 0.06);
+    border-left: 3px solid var(--c-teal);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin: 0;
+    font-size: 13px;
+    color: var(--ink-muted);
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.acc-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.acc-label {
+    font-family: var(--f-head);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink);
+    letter-spacing: 0.2px;
+}
+
+.acc-field input {
+    width: 100%;
+    background: white;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 10px;
+    padding: 11px 14px;
+    font-size: 16px;          /* iOS no auto-zoom */
+    font-family: var(--f-display);
+    font-weight: 600;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.acc-field input:focus {
+    border-color: var(--c-teal);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+}
+
+.acc-hint {
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-weight: 600;
+}
+
+.acc-hint.is-good { color: var(--good-dark); }
+.acc-hint.is-bad  { color: var(--bad-dark); }
+
+.acc-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.acc-status {
+    font-family: var(--f-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    margin-top: 4px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.04);
+    display: none;
+}
+
+.acc-status.is-shown { display: block; }
+.acc-status.is-good { background: rgba(5, 150, 105, 0.10); color: var(--good-dark); }
+.acc-status.is-bad  { background: rgba(220, 38, 38, 0.10); color: var(--bad-dark); }
+.acc-status.is-info { background: rgba(15, 118, 110, 0.08); color: var(--c-teal-dark); }
+
+/* ============================================================
    SETTINGS MODAL
    ============================================================ */
 .settings-row {

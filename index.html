@@ -45,6 +45,10 @@
             <!-- ============== PROFILE SCREEN ============== -->
             <div id="screen-profile" class="screen">
                 <button class="fullscreen-btn" type="button" aria-label="Pełny ekran" data-action="toggleFullScreen">⛶</button>
+                <button class="cloud-status-pill" type="button" id="cloud-status-pill" data-action="showAccount" aria-label="Status synchronizacji">
+                    <span class="cloud-dot"></span>
+                    <span class="cloud-label" id="cloud-status-label">offline</span>
+                </button>
 
                 <div class="profile-main">
                     <section class="panel-card welcome-back" id="welcome-back" style="display:none;">
@@ -131,6 +135,7 @@
                 <div class="btn-container-bottom">
                     <button class="btn-big" type="button" data-action="goToSetup">Start misji ➜</button>
                     <button class="btn-big btn-secondary" type="button" data-action="showLeaderboard">Tablica wyników</button>
+                    <button class="btn-big btn-secondary" type="button" data-action="showAccount">👤 Konto</button>
                     <button class="btn-big btn-secondary" type="button" data-action="showHowto">📖 Jak grać</button>
                     <button class="btn-big btn-secondary" type="button" data-action="showSettings">⚙️ Ustawienia</button>
                 </div>
@@ -527,6 +532,70 @@
             <div class="modal-footer">
                 <div class="modal-btn-row">
                     <button class="btn-big btn-secondary" type="button" data-action="closeSettings">Zamknij</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-account" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <button class="modal-close" type="button" data-action="closeAccount" aria-label="Zamknij">×</button>
+                <h2>Konto</h2>
+                <p style="margin: 6px 0 0; color: rgba(255,255,255,0.85); font-weight: 600; font-size: 13px;">Trwałe konto = wyniki na każdym urządzeniu</p>
+                <div class="tab-bar">
+                    <button class="tab-btn active" type="button" data-action="accountTab" data-arg="signup" data-tab="signup">Stwórz konto</button>
+                    <button class="tab-btn" type="button" data-action="accountTab" data-arg="signin" data-tab="signin">Zaloguj się</button>
+                </div>
+            </div>
+            <div class="modal-body">
+                <!-- TAB: SIGN UP -->
+                <div id="acc-tab-signup" class="acc-tab">
+                    <p class="acc-info" id="acc-signup-info">
+                        Zachowamy Twoje dotychczasowe wyniki i powiążemy je z trwałym kontem. Dzięki temu możesz grać na innych urządzeniach i rywalizować w globalnym rankingu.
+                    </p>
+                    <label class="acc-field">
+                        <span class="acc-label">Nazwa gracza</span>
+                        <input type="text" id="acc-signup-name" maxlength="20" autocomplete="username" placeholder="np. SpritnyLis42">
+                        <span class="acc-hint" id="acc-signup-name-hint">2–20 znaków, litery/cyfry/_-</span>
+                    </label>
+                    <label class="acc-field">
+                        <span class="acc-label">Hasło</span>
+                        <input type="password" id="acc-signup-pass" minlength="6" autocomplete="new-password" placeholder="min. 6 znaków">
+                        <span class="acc-hint">Zapamiętaj — w razie utraty będzie potrzebny e-mail</span>
+                    </label>
+                    <label class="acc-field">
+                        <span class="acc-label">E-mail (opcjonalnie)</span>
+                        <input type="email" id="acc-signup-email" autocomplete="email" placeholder="np. mama@example.com">
+                        <span class="acc-hint">Tylko do odzyskiwania hasła. Można dodać później.</span>
+                    </label>
+                    <div class="acc-actions">
+                        <button class="btn-big" type="button" data-action="accountSignUp">Stwórz konto</button>
+                        <button class="btn-big btn-secondary" type="button" data-action="accountSuggestName">🎲 Wylosuj nazwę</button>
+                    </div>
+                    <div id="acc-signup-status" class="acc-status"></div>
+                </div>
+
+                <!-- TAB: SIGN IN -->
+                <div id="acc-tab-signin" class="acc-tab" style="display:none;">
+                    <p class="acc-info">Wpisz nazwę i hasło które ustawiłeś przy zakładaniu konta. Twoje wyniki zsynchronizują się automatycznie.</p>
+                    <label class="acc-field">
+                        <span class="acc-label">Nazwa gracza</span>
+                        <input type="text" id="acc-signin-name" autocomplete="username" placeholder="Twoja nazwa">
+                    </label>
+                    <label class="acc-field">
+                        <span class="acc-label">Hasło</span>
+                        <input type="password" id="acc-signin-pass" autocomplete="current-password" placeholder="Twoje hasło">
+                    </label>
+                    <div class="acc-actions">
+                        <button class="btn-big" type="button" data-action="accountSignIn">Zaloguj się</button>
+                    </div>
+                    <div id="acc-signin-status" class="acc-status"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-btn-row">
+                    <button class="btn-big btn-secondary" type="button" data-action="closeAccount">Zamknij</button>
                 </div>
             </div>
         </div>
