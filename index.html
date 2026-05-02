@@ -110,24 +110,14 @@
                         <section class="panel-card avatar-panel">
                             <div class="section-title-row">
                                 <span class="settings-label"><span class="label-badge">🎭</span> Wybierz bohatera</span>
-                                <span class="helper-text">15 awatarów</span>
+                                <span class="helper-text" id="avatar-count-label">100 awatarów · 6 kategorii</span>
                             </div>
-                            <div class="avatar-grid">
-                                <button type="button" class="avatar-option selected">🦉</button>
-                                <button type="button" class="avatar-option">🦁</button>
-                                <button type="button" class="avatar-option">🐼</button>
-                                <button type="button" class="avatar-option">🐱</button>
-                                <button type="button" class="avatar-option">🦊</button>
-                                <button type="button" class="avatar-option">🐸</button>
-                                <button type="button" class="avatar-option">🐯</button>
-                                <button type="button" class="avatar-option">🐶</button>
-                                <button type="button" class="avatar-option">🐹</button>
-                                <button type="button" class="avatar-option">🐲</button>
-                                <button type="button" class="avatar-option">🚀</button>
-                                <button type="button" class="avatar-option">👾</button>
-                                <button type="button" class="avatar-option">🤖</button>
-                                <button type="button" class="avatar-option">🦄</button>
-                                <button type="button" class="avatar-option">👻</button>
+                            <div class="avatar-search-row">
+                                <input type="text" id="avatar-search" class="avatar-search" placeholder="🔍 Szukaj w 100 awatarach (np. lis, smok)..." maxlength="30">
+                                <span class="avatar-current" id="avatar-current" aria-label="Wybrany awatar">🦉</span>
+                            </div>
+                            <div class="avatar-grid" id="avatar-grid" data-renderable="true">
+                                <!-- generowane przez JS — patrz buildAvatars() -->
                             </div>
                         </section>
                     </div>

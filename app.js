@@ -476,6 +476,119 @@
     const confettiColors = ["#0F766E", "#3730A3", "#D97706", "#0EA5E9", "#10B981", "#F59E0B"];
     const mathSymbols = ["+", "−", "×", "÷", "=", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "π", "√", "%"];
 
+    /* ============================================================
+       100 AWATAROW — 6 kategorii po ~17 emoji
+       Dobor: zwierzeta lubiane przez dzieci, postacie fantasy, sport,
+       sztuka i nauka, kosmos. Wszystko family-friendly, bez przemocy.
+       Slowa kluczowe sluza wyszukiwarce. ============================================================ */
+    const avatarLibrary = [
+        { cat: 'Zwierzęta',    emoji: '🦉', kw: 'sowa madrosc' },
+        { cat: 'Zwierzęta',    emoji: '🦁', kw: 'lew krol' },
+        { cat: 'Zwierzęta',    emoji: '🐼', kw: 'panda' },
+        { cat: 'Zwierzęta',    emoji: '🐱', kw: 'kot kotek' },
+        { cat: 'Zwierzęta',    emoji: '🦊', kw: 'lis spryt' },
+        { cat: 'Zwierzęta',    emoji: '🐸', kw: 'zaba' },
+        { cat: 'Zwierzęta',    emoji: '🐯', kw: 'tygrys' },
+        { cat: 'Zwierzęta',    emoji: '🐶', kw: 'pies piesek' },
+        { cat: 'Zwierzęta',    emoji: '🐹', kw: 'chomik' },
+        { cat: 'Zwierzęta',    emoji: '🐲', kw: 'smok dragon' },
+        { cat: 'Zwierzęta',    emoji: '🐰', kw: 'krolik zajac' },
+        { cat: 'Zwierzęta',    emoji: '🐻', kw: 'mis niedzwiedz' },
+        { cat: 'Zwierzęta',    emoji: '🐨', kw: 'koala' },
+        { cat: 'Zwierzęta',    emoji: '🦝', kw: 'szop' },
+        { cat: 'Zwierzęta',    emoji: '🐮', kw: 'krowa' },
+        { cat: 'Zwierzęta',    emoji: '🐷', kw: 'swinka' },
+        { cat: 'Zwierzęta',    emoji: '🐭', kw: 'myszka mysz' },
+        { cat: 'Zwierzęta',    emoji: '🦄', kw: 'jednorozec unicorn' },
+        { cat: 'Zwierzęta',    emoji: '🐺', kw: 'wilk' },
+
+        { cat: 'Morze i ptaki',emoji: '🐠', kw: 'rybka ryba' },
+        { cat: 'Morze i ptaki',emoji: '🐳', kw: 'wieloryb' },
+        { cat: 'Morze i ptaki',emoji: '🐬', kw: 'delfin' },
+        { cat: 'Morze i ptaki',emoji: '🐙', kw: 'osmiornica' },
+        { cat: 'Morze i ptaki',emoji: '🦑', kw: 'kalmar' },
+        { cat: 'Morze i ptaki',emoji: '🦀', kw: 'krab' },
+        { cat: 'Morze i ptaki',emoji: '🦈', kw: 'rekin' },
+        { cat: 'Morze i ptaki',emoji: '🐧', kw: 'pingwin' },
+        { cat: 'Morze i ptaki',emoji: '🐢', kw: 'zolw' },
+        { cat: 'Morze i ptaki',emoji: '🐊', kw: 'krokodyl' },
+        { cat: 'Morze i ptaki',emoji: '🦅', kw: 'orzel' },
+        { cat: 'Morze i ptaki',emoji: '🦆', kw: 'kaczka' },
+        { cat: 'Morze i ptaki',emoji: '🦜', kw: 'papuga' },
+        { cat: 'Morze i ptaki',emoji: '🦋', kw: 'motyl' },
+        { cat: 'Morze i ptaki',emoji: '🐝', kw: 'pszczola' },
+        { cat: 'Morze i ptaki',emoji: '🐞', kw: 'biedronka' },
+
+        { cat: 'Fantasy',      emoji: '👻', kw: 'duch' },
+        { cat: 'Fantasy',      emoji: '🧙', kw: 'czarodziej mag' },
+        { cat: 'Fantasy',      emoji: '🧚', kw: 'wrozka' },
+        { cat: 'Fantasy',      emoji: '🧜', kw: 'syrena' },
+        { cat: 'Fantasy',      emoji: '🧝', kw: 'elf' },
+        { cat: 'Fantasy',      emoji: '🦸', kw: 'superbohater hero' },
+        { cat: 'Fantasy',      emoji: '🥷', kw: 'ninja' },
+        { cat: 'Fantasy',      emoji: '🤴', kw: 'ksiaze' },
+        { cat: 'Fantasy',      emoji: '👸', kw: 'ksiezniczka' },
+        { cat: 'Fantasy',      emoji: '🧞', kw: 'dzin' },
+        { cat: 'Fantasy',      emoji: '🧌', kw: 'troll' },
+        { cat: 'Fantasy',      emoji: '🦹', kw: 'lotr czarny charakter' },
+        { cat: 'Fantasy',      emoji: '🤖', kw: 'robot' },
+        { cat: 'Fantasy',      emoji: '👾', kw: 'kosmita potworek' },
+        { cat: 'Fantasy',      emoji: '👽', kw: 'obcy alien' },
+
+        { cat: 'Sport',        emoji: '⚽', kw: 'pilka nozna soccer' },
+        { cat: 'Sport',        emoji: '🏀', kw: 'koszykowka' },
+        { cat: 'Sport',        emoji: '🏈', kw: 'futbol amerykanski' },
+        { cat: 'Sport',        emoji: '⚾', kw: 'baseball' },
+        { cat: 'Sport',        emoji: '🎾', kw: 'tenis' },
+        { cat: 'Sport',        emoji: '🏐', kw: 'siatkowka' },
+        { cat: 'Sport',        emoji: '🏓', kw: 'ping pong' },
+        { cat: 'Sport',        emoji: '🥋', kw: 'karate dojo' },
+        { cat: 'Sport',        emoji: '🥊', kw: 'boks' },
+        { cat: 'Sport',        emoji: '🚴', kw: 'rower' },
+        { cat: 'Sport',        emoji: '🏊', kw: 'plywanie' },
+        { cat: 'Sport',        emoji: '🏃', kw: 'bieg' },
+        { cat: 'Sport',        emoji: '⛷️', kw: 'narty' },
+        { cat: 'Sport',        emoji: '🏂', kw: 'snowboard' },
+        { cat: 'Sport',        emoji: '🤸', kw: 'gimnastyka' },
+        { cat: 'Sport',        emoji: '🧘', kw: 'joga' },
+
+        { cat: 'Sztuka i nauka', emoji: '🎸', kw: 'gitara' },
+        { cat: 'Sztuka i nauka', emoji: '🎹', kw: 'pianino' },
+        { cat: 'Sztuka i nauka', emoji: '🎺', kw: 'trabka' },
+        { cat: 'Sztuka i nauka', emoji: '🥁', kw: 'beben' },
+        { cat: 'Sztuka i nauka', emoji: '🎤', kw: 'mikrofon' },
+        { cat: 'Sztuka i nauka', emoji: '🎨', kw: 'paleta sztuka' },
+        { cat: 'Sztuka i nauka', emoji: '🎭', kw: 'teatr' },
+        { cat: 'Sztuka i nauka', emoji: '🎬', kw: 'film klaps' },
+        { cat: 'Sztuka i nauka', emoji: '📚', kw: 'ksiazki' },
+        { cat: 'Sztuka i nauka', emoji: '🔬', kw: 'mikroskop' },
+        { cat: 'Sztuka i nauka', emoji: '🔭', kw: 'teleskop' },
+        { cat: 'Sztuka i nauka', emoji: '🧮', kw: 'liczydlo' },
+        { cat: 'Sztuka i nauka', emoji: '🧪', kw: 'probowka' },
+        { cat: 'Sztuka i nauka', emoji: '🧬', kw: 'dna' },
+        { cat: 'Sztuka i nauka', emoji: '🎲', kw: 'kostka' },
+        { cat: 'Sztuka i nauka', emoji: '🧩', kw: 'puzzle' },
+        { cat: 'Sztuka i nauka', emoji: '♟️', kw: 'szachy' },
+
+        { cat: 'Symbole',      emoji: '🚀', kw: 'rakieta' },
+        { cat: 'Symbole',      emoji: '⭐', kw: 'gwiazdka' },
+        { cat: 'Symbole',      emoji: '🌟', kw: 'iskra' },
+        { cat: 'Symbole',      emoji: '🌙', kw: 'ksiezyc' },
+        { cat: 'Symbole',      emoji: '☀️', kw: 'slonce' },
+        { cat: 'Symbole',      emoji: '🪐', kw: 'planeta' },
+        { cat: 'Symbole',      emoji: '🌍', kw: 'ziemia' },
+        { cat: 'Symbole',      emoji: '⚡', kw: 'piorun' },
+        { cat: 'Symbole',      emoji: '🔥', kw: 'ogien' },
+        { cat: 'Symbole',      emoji: '❄️', kw: 'sniezynka' },
+        { cat: 'Symbole',      emoji: '🌈', kw: 'tecza' },
+        { cat: 'Symbole',      emoji: '💎', kw: 'diament' },
+        { cat: 'Symbole',      emoji: '👑', kw: 'korona' },
+        { cat: 'Symbole',      emoji: '🏆', kw: 'puchar' },
+        { cat: 'Symbole',      emoji: '🎯', kw: 'tarcza cel' },
+        { cat: 'Symbole',      emoji: '🔮', kw: 'krysztalowa kula' },
+        { cat: 'Symbole',      emoji: '🎁', kw: 'prezent' },
+    ];
+
     // 30 pozytywnych cytatów po trafionej odpowiedzi.
     const cheers = [
         "Świetnie!",
@@ -2069,14 +2182,78 @@
     /* ============================================================
        INIT
        ============================================================ */
+    function buildAvatarGrid(filter) {
+        const grid = document.getElementById('avatar-grid');
+        if (!grid) return;
+        const q = (filter || '').trim().toLowerCase();
+        grid.innerHTML = '';
+
+        // Grupuj po kategoriach, zachowuj kolejnosc
+        const byCat = {};
+        for (const av of avatarLibrary) {
+            if (q && !av.kw.toLowerCase().includes(q) && !av.cat.toLowerCase().includes(q)) continue;
+            (byCat[av.cat] = byCat[av.cat] || []).push(av);
+        }
+
+        const catOrder = ['Zwierzęta','Morze i ptaki','Fantasy','Sport','Sztuka i nauka','Symbole'];
+        let renderedAny = false;
+        for (const cat of catOrder) {
+            const items = byCat[cat];
+            if (!items || !items.length) continue;
+            renderedAny = true;
+            const header = document.createElement('div');
+            header.className = 'avatar-category-header';
+            header.textContent = cat;
+            grid.appendChild(header);
+            for (const av of items) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'avatar-option' + (av.emoji === user.avatar ? ' selected' : '');
+                btn.textContent = av.emoji;
+                btn.title = av.kw.split(' ')[0];
+                btn.dataset.kw = av.kw;
+                grid.appendChild(btn);
+            }
+        }
+        if (!renderedAny) {
+            const empty = document.createElement('div');
+            empty.className = 'avatar-empty';
+            empty.textContent = `Brak awatarów dla "${q}"`;
+            grid.appendChild(empty);
+        }
+    }
+
     function bindAvatarPicker() {
-        document.querySelectorAll(".avatar-option").forEach((el) => {
-            el.addEventListener("click", function () {
-                document.querySelectorAll(".avatar-option").forEach((a) => a.classList.remove("selected"));
-                this.classList.add("selected");
-                user.avatar = this.textContent.trim();
+        const grid = document.getElementById('avatar-grid');
+        if (grid) {
+            // Event delegation — buttony tworzone dynamicznie
+            grid.addEventListener('click', (ev) => {
+                const btn = ev.target.closest('.avatar-option');
+                if (!btn) return;
+                grid.querySelectorAll('.avatar-option').forEach(a => a.classList.remove('selected'));
+                btn.classList.add('selected');
+                const emoji = btn.textContent.trim();
+                user.avatar = emoji;
+                const current = document.getElementById('avatar-current');
+                if (current) current.textContent = emoji;
+                // Cloud sync wybranego avatara (best effort)
+                if (cloudReady && cloudUser && cloudUser.profile) {
+                    sb.from('profiles').update({ avatar: emoji }).eq('id', cloudUser.id).then(() => {
+                        if (cloudUser && cloudUser.profile) cloudUser.profile.avatar = emoji;
+                    }).catch(() => {});
+                }
             });
-        });
+        }
+        // Wyszukiwarka
+        const search = document.getElementById('avatar-search');
+        if (search) {
+            let timer;
+            search.addEventListener('input', () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => buildAvatarGrid(search.value), 150);
+            });
+        }
+        buildAvatarGrid('');
     }
 
     /** Throttled hover handler — nie chcemy odtwarzac za kazdym
