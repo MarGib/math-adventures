@@ -377,15 +377,18 @@
         return cloudUser;
     }
 
+    /** Sign-in. NIE robi globalnego signOut — kazde urzadzenie ma wlasna
+        sesje. Jezeli jest aktywna sesja (anon albo inny user), sygnaczemy
+        ja LOKALNIE dopiero gdy zlogujemy nowego usera (atomowo). */
     async function cloudSignIn(username, password, onStep) {
         const step = (t) => { if (onStep) onStep(t); };
         if (!cloudReady) throw new Error('Chmura niedostępna');
         const synth = syntheticEmailFor(username);
 
-        step('Wylogowuję poprzednią sesję...');
-        try { await sb.auth.signOut(); } catch (_) {}
-
         step('Loguję na konto...');
+        // Supabase v2 signInWithPassword automatycznie replace'uje lokalna
+        // sesje JWT — nie potrzebujemy explicit signOut. Inne urzadzenia
+        // tego samego konta dalej dzialaja (kazde ma swoj token).
         const { data, error } = await sb.auth.signInWithPassword({ email: synth, password });
         if (error) {
             console.error('[cloud] signIn error:', error);
@@ -395,7 +398,15 @@
             if (/Email not confirmed/i.test(error.message)) {
                 throw new Error('Konto nie zostało potwierdzone. Wyłącz "Confirm email" w Supabase Auth → Email.');
             }
-            throw new Error(error.message || 'Logowanie nieudane');
+            // Edge case: jakas wersja Supabase wymaga signOut przed signIn
+            if (/already.*signed|active.*session/i.test(error.message)) {
+                step('Czyszczę poprzednią sesję lokalnie...');
+                await sb.auth.signOut({ scope: 'local' }).catch(() => {});
+                const retry = await sb.auth.signInWithPassword({ email: synth, password });
+                if (retry.error) throw new Error(retry.error.message || 'Logowanie nieudane');
+            } else {
+                throw new Error(error.message || 'Logowanie nieudane');
+            }
         }
 
         step('Pobieram profil...');
@@ -409,10 +420,29 @@
         return cloudUser;
     }
 
+    /** Sign-out tylko z TEGO urzadzenia. Inne urzadzenia tego konta
+        zostaja zalogowane. Po wylogowaniu tworzymy nowa anonimowa sesje
+        zeby gra dalej dzialala bez przerwy. */
     async function cloudSignOut() {
         if (!cloudReady) return;
-        try { await sb.auth.signOut(); } catch (_) {}
-        // Stworz nowa anonimowa sesje zeby gra dalej dzialala
+        try {
+            await sb.auth.signOut({ scope: 'local' });
+        } catch (_) {}
+        try {
+            await sb.auth.signInAnonymously();
+            await refreshCloudUser();
+        } catch (_) {}
+    }
+
+    /** Wyloguj ze WSZYSTKICH urzadzen (security feature). Uzywne gdy:
+        - User obawia sie ze ktos przejal jego haslo
+        - Zgubil telefon i chce odebrac dostep
+        Po tym musi sie ponownie zalogowac wszedzie. */
+    async function cloudSignOutEverywhere() {
+        if (!cloudReady) return;
+        try {
+            await sb.auth.signOut({ scope: 'global' });
+        } catch (_) {}
         try {
             await sb.auth.signInAnonymously();
             await refreshCloudUser();
@@ -953,19 +983,25 @@
             if (el) { el.textContent = ''; el.className = 'acc-status'; }
         });
 
-        // Jezeli juz zalogowany trwale — pokaz info + przycisk Wyloguj
-        const signupTab = document.getElementById('acc-tab-signup');
+        // Jezeli juz zalogowany trwale — pokaz info + przyciski Wyloguj
         const signupInfo = document.getElementById('acc-signup-info');
         if (cloudUser && cloudUser._persistent && cloudUser.profile && signupInfo) {
+            const username = escapeHtml(cloudUser.profile.username);
             signupInfo.innerHTML = `
-                ✓ Jesteś zalogowany jako <strong>${escapeHtml(cloudUser.profile.username)}</strong>.
-                Twoje wyniki synchronizują się z chmurą.
-                <br><br>
-                <button class="btn-big btn-secondary" type="button" data-action="accountSignOut">Wyloguj się</button>
+                <div class="acc-logged-in">
+                    <div class="acc-logged-head">✓ Zalogowany jako <strong>${username}</strong></div>
+                    <p class="acc-logged-desc">Wyniki synchronizują się z chmurą. Możesz grać na wielu urządzeniach jednocześnie — telefon, tablet, komputer.</p>
+                    <div class="acc-logged-actions">
+                        <button class="btn-big btn-secondary acc-logout-local" type="button">Wyloguj na tym urządzeniu</button>
+                        <button class="acc-logout-global" type="button" title="Bezpieczne wylogowanie ze wszystkich urządzeń (np. po zgubieniu telefonu)">Wyloguj wszędzie</button>
+                    </div>
+                </div>
             `;
-            // Podepnij handler do tego przycisku
-            const btn = signupInfo.querySelector('button');
-            if (btn) btn.addEventListener('click', accountSignOut);
+            // Podepnij handlery
+            const localBtn = signupInfo.querySelector('.acc-logout-local');
+            const globalBtn = signupInfo.querySelector('.acc-logout-global');
+            if (localBtn) localBtn.addEventListener('click', accountSignOut);
+            if (globalBtn) globalBtn.addEventListener('click', accountSignOutEverywhere);
         } else if (signupInfo && cloudReady) {
             signupInfo.innerHTML = 'Zachowamy Twoje dotychczasowe wyniki i powiążemy je z trwałym kontem. Dzięki temu możesz grać na innych urządzeniach i rywalizować w globalnym rankingu.';
         } else if (signupInfo) {
@@ -1082,12 +1118,25 @@
     }
 
     async function accountSignOut() {
-        if (!confirm('Wylogować się? Wrócisz do trybu anonimowego — wyniki nadal będą synchronizować się z chmurą, ale nie będą widoczne na innych urządzeniach.')) return;
+        if (!confirm('Wylogować się na TYM urządzeniu?\n\nInne urządzenia (telefon, komputer, tablet) na których jesteś zalogowany — pozostaną zalogowane.')) return;
         try {
             await cloudSignOut();
             updateCloudStatusPill();
             renderWelcomeBack();
             closeAccount();
+        } catch (e) {
+            alert('Nie udało się wylogować: ' + (e.message || ''));
+        }
+    }
+
+    async function accountSignOutEverywhere() {
+        if (!confirm('Wylogować ze WSZYSTKICH urządzeń?\n\nUżyj tej opcji jeżeli zgubiłeś telefon, ktoś poznał Twoje hasło, albo chcesz odzyskać kontrolę nad kontem. Każde urządzenie będzie musiało zalogować się na nowo.')) return;
+        try {
+            await cloudSignOutEverywhere();
+            updateCloudStatusPill();
+            renderWelcomeBack();
+            closeAccount();
+            alert('✓ Wylogowano ze wszystkich urządzeń. Wszystkie sesje (włącznie z tym urządzeniem) zostały zakończone.');
         } catch (e) {
             alert('Nie udało się wylogować: ' + (e.message || ''));
         }
