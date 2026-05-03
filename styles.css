@@ -954,6 +954,117 @@ select {
     letter-spacing: 1px;
 }
 
+.quick-tops-tabs {
+    display: inline-flex;
+    gap: 4px;
+    background: rgba(15, 23, 42, 0.05);
+    padding: 3px;
+    border-radius: 999px;
+}
+
+.qt-tab {
+    background: transparent;
+    border: none;
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--ink-muted);
+    padding: 4px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.qt-tab:hover { background: rgba(15, 118, 110, 0.08); }
+
+.qt-tab.active {
+    background: white;
+    color: var(--c-teal-dark);
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.10);
+}
+
+/* Leaderboard controls */
+.lb-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    position: relative;
+    z-index: 1;
+}
+
+.lb-tabs {
+    display: inline-flex;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.18);
+    padding: 3px;
+    border-radius: 999px;
+    width: max-content;
+    backdrop-filter: blur(8px);
+}
+
+.lb-tab {
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.lb-tab:hover { background: rgba(255, 255, 255, 0.18); }
+
+.lb-tab.active {
+    background: white;
+    color: var(--c-teal-dark);
+}
+
+.lb-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.lb-filter {
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.lb-filter:hover {
+    background: rgba(255, 255, 255, 0.20);
+    border-color: rgba(255, 255, 255, 0.40);
+}
+
+.lb-filter.active {
+    background: white;
+    color: var(--c-teal-dark);
+    border-color: white;
+}
+
+/* Edit profile form row (klasa + nr w dzienniku obok siebie) */
+.ep-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+}
+
+@media (max-width: 520px) {
+    .ep-row { flex-direction: column; gap: 12px; }
+    .ep-row .acc-field { flex: 1 1 auto !important; width: 100%; }
+}
+
 .top-list {
     list-style: none;
     padding: 0;

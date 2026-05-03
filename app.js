@@ -236,19 +236,61 @@
         return [...out].filter(n => n.length >= 2 && n.length <= 20).slice(0, 3);
     }
 
-    async function cloudFetchGlobalTop(limit) {
+    async function cloudFetchGlobalTop(limit, modeFilter) {
         if (!cloudReady) return [];
         try {
-            const { data, error } = await sb
-                .from('leaderboard_global')
-                .select('*')
-                .limit(limit || 20);
+            let q = sb.from('leaderboard_global').select('*');
+            if (modeFilter && modeFilter !== 'all') q = q.eq('mode', modeFilter);
+            q = q.limit(limit || 20);
+            const { data, error } = await q;
             if (error) throw error;
             return data || [];
         } catch (e) {
             console.warn('[cloud] fetch top failed:', e && e.message);
             return [];
         }
+    }
+
+    /** Pobierz wyniki ZALOGOWANEGO usera z bazy (cross-device sync). */
+    async function cloudFetchMyResults(limit, modeFilter) {
+        if (!cloudReady || !cloudUser) return [];
+        try {
+            let q = sb.from('game_results')
+                .select('*')
+                .eq('user_id', cloudUser.id)
+                .order('score', { ascending: false })
+                .order('played_at', { ascending: false });
+            if (modeFilter && modeFilter !== 'all') q = q.eq('mode', modeFilter);
+            q = q.limit(limit || 20);
+            const { data, error } = await q;
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.warn('[cloud] fetch my results failed:', e && e.message);
+            return [];
+        }
+    }
+
+    /** Update profilu (school/class/city/journal/avatar) przez RPC. */
+    async function cloudUpdateProfile(fields) {
+        if (!cloudReady) throw new Error('Brak połączenia z chmurą');
+        if (!cloudUser || !cloudUser._persistent) {
+            throw new Error('Najpierw stwórz konto trwałe (Konto → Stwórz konto)');
+        }
+        const { data, error } = await sb.rpc('update_profile_extras', {
+            p_school: fields.school || null,
+            p_class_name: fields.class_name || null,
+            p_city: fields.city || null,
+            p_journal_no: fields.journal_no || null,
+            p_avatar: fields.avatar || null,
+        });
+        if (error) throw error;
+        if (!data || !data.ok) {
+            const errs = (data && data.errors) || [];
+            throw new Error('Walidacja: ' + errs.join(', '));
+        }
+        await refreshCloudUser();
+        return cloudUser;
     }
 
     /* ---- Auth: username + password (synthetic email) ----
@@ -278,7 +320,7 @@
             if (!u) { cloudUser = null; return; }
             const { data: profile } = await sb
                 .from('profiles')
-                .select('id, username, avatar, display_name, email')
+                .select('id, username, avatar, display_name, email, school, class_name, city, journal_no')
                 .eq('id', u.id)
                 .maybeSingle();
             cloudUser = {
@@ -1693,6 +1735,72 @@
         switchScreen('screen-setup');
     }
 
+    /* ---- EDIT PROFILE modal ---- */
+    function showEditProfile() {
+        const modal = document.getElementById('modal-edit-profile');
+        if (!modal) return;
+        // Wymagamy persistent account
+        if (!cloudReady || !cloudUser || !cloudUser._persistent) {
+            const status = document.getElementById('ep-status');
+            if (status) {
+                status.className = 'acc-status is-shown is-info';
+                status.textContent = 'Najpierw stwórz trwałe konto (Konto → Stwórz konto). Wtedy możesz wypełnić profil.';
+            }
+            modal.style.display = 'flex';
+            return;
+        }
+        // Prefill z aktualnego profilu
+        const p = cloudUser.profile || {};
+        document.getElementById('ep-school').value = p.school || '';
+        document.getElementById('ep-class').value = p.class_name || '';
+        document.getElementById('ep-city').value = p.city || '';
+        document.getElementById('ep-journal').value = p.journal_no || '';
+        const status = document.getElementById('ep-status');
+        if (status) { status.textContent = ''; status.className = 'acc-status'; }
+        modal.style.display = 'flex';
+    }
+
+    function closeEditProfile() {
+        const modal = document.getElementById('modal-edit-profile');
+        if (modal) modal.style.display = 'none';
+    }
+
+    async function saveEditProfile() {
+        const status = document.getElementById('ep-status');
+        const setStatus = (text, kind) => {
+            if (!status) return;
+            status.textContent = text;
+            status.className = 'acc-status is-shown' + (kind ? ' is-' + kind : '');
+        };
+
+        const school = document.getElementById('ep-school').value.trim();
+        const className = document.getElementById('ep-class').value.trim();
+        const city = document.getElementById('ep-city').value.trim();
+        const journalRaw = document.getElementById('ep-journal').value.trim();
+        const journal = journalRaw ? parseInt(journalRaw, 10) : null;
+
+        if (className && !/^[0-9]+[A-Za-z]*$/.test(className)) {
+            setStatus('Klasa: format taki jak 1A, 2B, 5C', 'bad');
+            return;
+        }
+        if (journal && (journal < 1 || journal > 99)) {
+            setStatus('Nr w dzienniku: 1-99', 'bad');
+            return;
+        }
+
+        setStatus('⏳ Zapisuję...', 'info');
+        try {
+            await cloudUpdateProfile({
+                school, class_name: className, city, journal_no: journal,
+                avatar: user.avatar
+            });
+            setStatus('✓ Profil zapisany', 'good');
+            setTimeout(() => closeEditProfile(), 1200);
+        } catch (e) {
+            setStatus('⚠ ' + (e.message || 'Nie udało się zapisać'), 'bad');
+        }
+    }
+
     function welcomeChange() {
         const banner = document.getElementById('welcome-back');
         if (banner) banner.style.display = 'none';
@@ -2052,45 +2160,136 @@
         });
     }
 
-    function showLeaderboard() {
+    let lbState = { scope: 'my', filter: 'all' };
+
+    async function showLeaderboard() {
+        document.getElementById("modal-leaderboard").style.display = "flex";
+        // Reset do default state
+        lbState = { scope: 'my', filter: 'all' };
+        updateLbControlsUI();
+        await renderLeaderboard();
+    }
+
+    function updateLbControlsUI() {
+        document.querySelectorAll('.lb-tab').forEach(t => t.classList.toggle('active', t.dataset.arg === lbState.scope));
+        document.querySelectorAll('.lb-filter').forEach(f => f.classList.toggle('active', f.dataset.arg === lbState.filter));
+    }
+
+    function lbScope(scope) {
+        lbState.scope = scope;
+        updateLbControlsUI();
+        renderLeaderboard();
+    }
+
+    function lbFilter(mode) {
+        lbState.filter = mode;
+        updateLbControlsUI();
+        renderLeaderboard();
+    }
+
+    async function renderLeaderboard() {
         const container = document.getElementById("leaderboard-content");
-        container.innerHTML = "";
-        const data = loadLeaderboardData();
+        container.innerHTML = '<p class="muted-empty">⏳ Wczytuję wyniki...</p>';
 
-        if (!data.length) {
-            container.innerHTML = '<p class="muted-empty">Brak zapisanych wyników. Zagraj pierwszą misję.</p>';
+        let entries = [];
+        let isCloud = false;
+        if (lbState.scope === 'global' && cloudReady) {
+            const cloud = await cloudFetchGlobalTop(20, lbState.filter);
+            entries = cloud.map(c => ({
+                n: c.username, a: c.avatar, s: c.score,
+                m: c.mode, diff: c.difficulty, t: c.duration_minutes,
+                d: c.played_at ? new Date(c.played_at).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '',
+                school: c.school, class_name: c.class_name, city: c.city,
+                _id: c.id
+            }));
+            isCloud = true;
+        } else if (lbState.scope === 'my' && cloudUser && cloudUser._persistent && cloudReady) {
+            const cloud = await cloudFetchMyResults(20, lbState.filter);
+            entries = cloud.map(c => ({
+                n: (cloudUser.profile && cloudUser.profile.username) || user.name,
+                a: (cloudUser.profile && cloudUser.profile.avatar) || user.avatar,
+                s: c.score, m: c.mode, diff: c.difficulty, t: c.duration_minutes,
+                d: c.played_at ? new Date(c.played_at).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '',
+                _id: c.id, _history: c.history
+            }));
+            isCloud = true;
         } else {
-            const list = document.createElement("div");
-            list.className = "leaderboard-list";
-
-            data.forEach((entry, index) => {
-                const row = document.createElement("button");
-                row.type = "button";
-                row.className = "leaderboard-entry";
-                row.onclick = () => loadArchive(index);
-
-                row.innerHTML = `
-                    <div class="leaderboard-top">
-                        <div class="leaderboard-player">
-                            <div class="leaderboard-rank">${index + 1}</div>
-                            <div>
-                                <div class="leaderboard-name">${escapeHtml(entry.a)} ${escapeHtml(entry.n)}</div>
-                                <div class="leaderboard-meta">${getDiffName(entry.diff)} · ${entry.t === 0 ? "Trening" : `${entry.t} min`} · ${getModeLabel(entry.m)}</div>
-                            </div>
-                        </div>
-                        <div class="leaderboard-score">${entry.s}</div>
-                    </div>
-                    <div class="leaderboard-meta">${entry.d}</div>
-                `;
-
-                list.appendChild(row);
-            });
-
-            container.appendChild(list);
+            // Anon / offline — local
+            entries = loadLeaderboardData();
+            if (lbState.filter !== 'all') entries = entries.filter(e => e.m === lbState.filter);
         }
 
-        document.getElementById("modal-leaderboard").style.display = "flex";
+        if (!entries.length) {
+            const msg = lbState.scope === 'global'
+                ? 'Brak globalnych wyników w tej kategorii.'
+                : 'Brak zapisanych wyników. Zagraj pierwszą misję.';
+            container.innerHTML = `<p class="muted-empty">${msg}</p>`;
+            return;
+        }
+
+        container.innerHTML = '';
+        const list = document.createElement("div");
+        list.className = "leaderboard-list";
+
+        entries.forEach((entry, index) => {
+            const row = document.createElement("button");
+            row.type = "button";
+            row.className = "leaderboard-entry";
+            // Klik otwiera archiwum dla offline (po indeksie) — dla cloud nie obslugujemy
+            // pelnego raportu (history mozemy w przyszlosci dociągnac)
+            if (!isCloud) {
+                row.onclick = () => loadArchive(entries.indexOf(entry));
+            } else if (entry._history) {
+                row.onclick = () => loadCloudArchive(entry);
+            }
+
+            const meta = [
+                getDiffName(entry.diff),
+                entry.t === 0 ? 'Trening' : `${entry.t} min`,
+                getModeLabel(entry.m)
+            ];
+            if (entry.school) meta.push(`🏫 ${escapeHtml(entry.school)}`);
+            if (entry.class_name) meta.push(`📚 ${escapeHtml(entry.class_name)}`);
+            if (entry.city) meta.push(`📍 ${escapeHtml(entry.city)}`);
+
+            row.innerHTML = `
+                <div class="leaderboard-top">
+                    <div class="leaderboard-player">
+                        <div class="leaderboard-rank">${index + 1}</div>
+                        <div>
+                            <div class="leaderboard-name">${escapeHtml(entry.a || '🦉')} ${escapeHtml(entry.n)}</div>
+                            <div class="leaderboard-meta">${meta.join(' · ')}</div>
+                        </div>
+                    </div>
+                    <div class="leaderboard-score">${entry.s}</div>
+                </div>
+                ${entry.d ? `<div class="leaderboard-meta">${entry.d}</div>` : ''}
+            `;
+
+            list.appendChild(row);
+        });
+
+        container.appendChild(list);
     }
+
+    function loadCloudArchive(entry) {
+        // Cloud entry ma history — pokaz raport bez przerabiania na archive layout
+        // Recreate temporary 'source' compatible with generateReport
+        const source = {
+            n: entry.n, a: entry.a, s: entry.s,
+            m: entry.m, diff: entry.diff, t: entry.t, d: entry.d,
+            h: entry._history || []
+        };
+        generateReport(source);
+        document.getElementById('modal-leaderboard').style.display = 'none';
+        document.getElementById('modal-report').style.display = 'flex';
+        document.getElementById('archive-badge').style.display = 'block';
+        document.getElementById('report-live-footer').style.display = 'none';
+        document.getElementById('report-archive-footer').style.display = 'block';
+    }
+
+    /** Stara nazwa dla kompatybilnosci. */
+    function showLeaderboardLegacy() { return showLeaderboard(); }
 
     function loadArchive(index) {
         const data = loadLeaderboardData();
@@ -2309,6 +2508,12 @@
                     case 'accountSignIn': accountSignIn(); break;
                     case 'accountSignOut': accountSignOut(); break;
                     case 'accountSuggestName': accountSuggestName(); break;
+                    case 'showEditProfile': showEditProfile(); break;
+                    case 'closeEditProfile': closeEditProfile(); break;
+                    case 'saveEditProfile': saveEditProfile(); break;
+                    case 'topListTab': topListTab(arg); break;
+                    case 'lbScope': lbScope(arg); break;
+                    case 'lbFilter': lbFilter(arg); break;
                     case 'closeReportSmart': {
                         // Archive view (came from leaderboard) -> back to leaderboard.
                         // Live view (just finished a game) -> close & go to setup.
@@ -2345,28 +2550,55 @@
         }, 5500);
     }
 
-    /* ---------- Profile extras: Top-3 mini-leaderboard + math facts rotation ---------- */
-    function renderProfileTopList() {
+    /* ---------- Profile extras: Top-3 (Moje / Globalne) + math facts rotation ---------- */
+    let profileTopMode = 'my'; // 'my' | 'global'
+
+    async function renderProfileTopList() {
         const list = document.getElementById('profile-top-list');
         if (!list) return;
-        const data = loadLeaderboardData();
-        if (!data.length) {
-            list.innerHTML = '<li class="top-empty">Zagraj pierwszą misję, aby zobaczyć wyniki!</li>';
+        list.innerHTML = '<li class="top-empty">⏳ Wczytuję wyniki...</li>';
+
+        let entries = [];
+        if (profileTopMode === 'global' && cloudReady) {
+            const cloud = await cloudFetchGlobalTop(3);
+            entries = cloud.map(c => ({ n: c.username, a: c.avatar, s: c.score, m: c.mode, diff: c.difficulty }));
+        } else if (profileTopMode === 'my' && cloudUser && cloudUser._persistent && cloudReady) {
+            // Zalogowany — ciągnij z cloud (cross-device)
+            const cloud = await cloudFetchMyResults(3);
+            entries = cloud.map(c => ({ n: cloudUser.profile && cloudUser.profile.username || user.name, a: cloudUser.profile && cloudUser.profile.avatar || user.avatar, s: c.score, m: c.mode, diff: c.difficulty }));
+        } else {
+            // Anon / brak chmury — local storage
+            entries = loadLeaderboardData().slice(0, 3);
+        }
+
+        if (!entries.length) {
+            const msg = profileTopMode === 'global'
+                ? 'Brak globalnych wyników jeszcze. Bądź pierwszy!'
+                : 'Zagraj pierwszą misję, aby zobaczyć wyniki!';
+            list.innerHTML = `<li class="top-empty">${msg}</li>`;
             return;
         }
         list.innerHTML = '';
-        data.slice(0, 3).forEach((entry, i) => {
+        entries.forEach((entry, i) => {
             const li = document.createElement('li');
             li.innerHTML = `
                 <span class="top-rank">#${i + 1}</span>
                 <span class="top-name">
-                    <span class="top-avatar">${escapeHtml(entry.a)}</span>${escapeHtml(entry.n)}
+                    <span class="top-avatar">${escapeHtml(entry.a || '🦉')}</span>${escapeHtml(entry.n)}
                     <span class="top-meta">${getDiffName(entry.diff)} · ${getModeLabel(entry.m)}</span>
                 </span>
                 <span class="top-score">${entry.s}</span>
             `;
             list.appendChild(li);
         });
+    }
+
+    function topListTab(mode) {
+        profileTopMode = mode;
+        document.querySelectorAll('.qt-tab').forEach(t => {
+            t.classList.toggle('active', t.dataset.arg === mode);
+        });
+        renderProfileTopList();
     }
 
     function startFactRotation() {

@@ -56,7 +56,8 @@
                         </div>
                         <div class="welcome-actions">
                             <button class="btn-big" type="button" data-action="welcomeContinue">Zagraj ponownie ➜</button>
-                            <button class="link-btn" type="button" data-action="welcomeChange">Zmień profil</button>
+                            <button class="link-btn" type="button" data-action="showEditProfile">✏️ Edytuj profil</button>
+                            <button class="link-btn" type="button" data-action="welcomeChange">↺ Inny gracz</button>
                         </div>
                     </section>
 
@@ -99,7 +100,10 @@
                             <div class="quick-tops">
                                 <div class="quick-tops-head">
                                     <span class="quick-tops-title">🏆 Najlepsze wyniki</span>
-                                    <span class="quick-tops-hint">Top 3</span>
+                                    <span class="quick-tops-tabs">
+                                        <button type="button" class="qt-tab active" data-action="topListTab" data-arg="my">Moje</button>
+                                        <button type="button" class="qt-tab" data-action="topListTab" data-arg="global">🌐 Globalne</button>
+                                    </span>
                                 </div>
                                 <ol class="top-list" id="profile-top-list">
                                     <li class="top-empty">Zagraj pierwszą misję, aby zobaczyć wyniki!</li>
@@ -472,7 +476,21 @@
             <div class="modal-header">
                 <button class="modal-close" type="button" data-action="closeLeaderboard" aria-label="Zamknij tablicę wyników">×</button>
                 <h2>Tablica wyników</h2>
-                <p style="margin:8px 0 0; color: rgba(255,255,255,0.85); font-weight:700; font-size:13px;">Kliknij wynik, aby otworzyć pełny raport.</p>
+                <p style="margin:8px 0 0; color: rgba(255,255,255,0.85); font-weight:600; font-size:13px;">Kliknij wynik, aby otworzyć pełny raport.</p>
+                <div class="lb-controls">
+                    <div class="lb-tabs">
+                        <button class="lb-tab active" type="button" data-action="lbScope" data-arg="my">👤 Moje</button>
+                        <button class="lb-tab" type="button" data-action="lbScope" data-arg="global">🌐 Globalnie</button>
+                    </div>
+                    <div class="lb-filters">
+                        <button class="lb-filter active" type="button" data-action="lbFilter" data-arg="all">Wszystkie</button>
+                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="add">➕ Dodawanie</button>
+                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="sub">➖ Odejmowanie</button>
+                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="mul">✖️ Mnożenie</button>
+                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="div">➗ Dzielenie</button>
+                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="mix">🎲 Mix</button>
+                    </div>
+                </div>
             </div>
             <div class="modal-body" id="leaderboard-content"></div>
             <div class="modal-footer">
@@ -524,6 +542,53 @@
             <div class="modal-footer">
                 <div class="modal-btn-row">
                     <button class="btn-big btn-secondary" type="button" data-action="closeSettings">Zamknij</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-edit-profile" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <button class="modal-close" type="button" data-action="closeEditProfile" aria-label="Zamknij">×</button>
+                <h2>Twój profil</h2>
+                <p style="margin: 6px 0 0; color: rgba(255,255,255,0.85); font-weight: 600; font-size: 13px;">Wszystkie pola są opcjonalne</p>
+            </div>
+            <div class="modal-body">
+                <p class="acc-info">
+                    🛡️ <strong>Bez imion i nazwisk</strong> — nick wystarczy. Pola poniżej pomogą później budować rankingi szkolne i klasowe (turnieje matematyczne).
+                </p>
+
+                <label class="acc-field">
+                    <span class="acc-label">Szkoła <span class="acc-hint">(opcjonalne)</span></span>
+                    <input type="text" id="ep-school" maxlength="80" placeholder="np. Szkoła Podstawowa nr 1">
+                </label>
+
+                <div class="ep-row">
+                    <label class="acc-field" style="flex: 1;">
+                        <span class="acc-label">Klasa <span class="acc-hint">(opcjonalne)</span></span>
+                        <input type="text" id="ep-class" maxlength="6" placeholder="np. 1A, 2B, 5C" pattern="[0-9]+[A-Za-z]*">
+                    </label>
+                    <label class="acc-field" style="flex: 0 0 100px;">
+                        <span class="acc-label">Nr w dzienniku</span>
+                        <input type="number" id="ep-journal" min="1" max="99" placeholder="1-99">
+                    </label>
+                </div>
+
+                <label class="acc-field">
+                    <span class="acc-label">Miasto <span class="acc-hint">(opcjonalne)</span></span>
+                    <input type="text" id="ep-city" maxlength="60" placeholder="np. Warszawa">
+                </label>
+
+                <div class="acc-actions">
+                    <button class="btn-big" type="button" data-action="saveEditProfile">Zapisz</button>
+                    <button class="btn-big btn-secondary" type="button" data-action="closeEditProfile">Anuluj</button>
+                </div>
+                <div id="ep-status" class="acc-status"></div>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-btn-row">
+                    <button class="btn-big btn-secondary" type="button" data-action="closeEditProfile">Zamknij</button>
                 </div>
             </div>
         </div>
