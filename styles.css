@@ -1573,6 +1573,175 @@ select {
     gap: 12px;
 }
 
+/* mode-cell: kontener wrappujacy btn-mode + ikonka info "?" */
+.mode-cell {
+    position: relative;
+    display: flex;
+}
+
+.mode-cell .btn-mode {
+    flex: 1 1 auto;
+    width: 100%;
+}
+
+.mode-info-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    border: 1.5px solid rgba(255, 255, 255, 0.45);
+    color: white;
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: transform 0.2s var(--ease-spring), background 0.2s ease, border-color 0.2s ease;
+    z-index: 2;
+    line-height: 1;
+    padding: 0;
+}
+
+.mode-info-btn:hover {
+    background: rgba(255, 255, 255, 0.40);
+    border-color: white;
+    transform: scale(1.10);
+}
+
+.mode-info-btn:active {
+    transform: scale(0.95);
+}
+
+/* Lesson modal — sekcje */
+.lesson-section {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    background: rgba(15, 118, 110, 0.04);
+    border-left: 3px solid var(--c-teal);
+    border-radius: 10px;
+}
+
+.lesson-section h3 {
+    margin: 0 0 8px;
+    font-family: var(--f-head);
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--c-teal-dark);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lesson-section h3 .lesson-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    background: var(--c-teal);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.lesson-section p {
+    margin: 0 0 6px;
+    color: var(--ink-muted);
+    font-size: 13.5px;
+    line-height: 1.55;
+    font-weight: 500;
+}
+
+.lesson-section p:last-child { margin-bottom: 0; }
+
+.lesson-section strong {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.lesson-eq {
+    font-family: var(--f-mono);
+    font-feature-settings: 'tnum';
+    font-weight: 700;
+    background: white;
+    border: 1px solid var(--border-strong);
+    color: var(--c-teal-dark);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin: 0 2px;
+}
+
+.lesson-examples {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.lesson-example {
+    background: white;
+    border: 1px solid var(--border-strong);
+    padding: 8px 10px;
+    border-radius: 8px;
+    text-align: center;
+    font-family: var(--f-mono);
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 14px;
+}
+
+.lesson-example small {
+    display: block;
+    color: var(--ink-faint);
+    font-family: var(--f-body);
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 2px;
+    letter-spacing: 0.3px;
+}
+
+.lesson-tip {
+    background: linear-gradient(135deg, rgba(217, 119, 6, 0.08), rgba(217, 119, 6, 0.04));
+    border-left-color: var(--c-amber);
+}
+
+.lesson-tip h3 .lesson-icon {
+    background: var(--c-amber);
+}
+
+.lesson-tip h3 {
+    color: var(--c-amber-dark);
+}
+
+.lesson-warn {
+    background: linear-gradient(135deg, rgba(220, 38, 38, 0.06), rgba(220, 38, 38, 0.02));
+    border-left-color: var(--bad);
+}
+
+.lesson-warn h3 .lesson-icon {
+    background: var(--bad);
+}
+
+.lesson-warn h3 {
+    color: var(--bad-dark);
+}
+
+/* Lesson modal-header: gradient zalezny od misji (set przez JS) */
+#lesson-header.theme-add { background: linear-gradient(135deg, #10B981 0%, #047857 100%); }
+#lesson-header.theme-sub { background: linear-gradient(135deg, #0EA5E9 0%, #075985 100%); }
+#lesson-header.theme-mul { background: linear-gradient(135deg, #F59E0B 0%, #B45309 100%); }
+#lesson-header.theme-div { background: linear-gradient(135deg, #6366F1 0%, #312E81 100%); }
+#lesson-header.theme-mix { background: linear-gradient(135deg, #0F766E 0%, #3730A3 50%, #C2410C 100%); }
+
 .btn-mode {
     border: none;
     border-radius: var(--r-lg);

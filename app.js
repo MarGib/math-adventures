@@ -1740,6 +1740,230 @@
         switchScreen('screen-setup');
     }
 
+    /* ---- LESSON modal — mini-lekcje matematyczne ---- */
+    const lessons = {
+        add: {
+            title: 'Dodawanie',
+            subtitle: 'Łączymy zbiory — sumujemy elementy',
+            theme: 'add',
+            html: `
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">📖</span>Co to jest dodawanie?</h3>
+                    <p>Dodawanie to <strong>łączenie</strong> dwóch (lub więcej) liczb w jedną — sumę. Jeśli masz <span class="lesson-eq">3</span> jabłka i ktoś da Ci jeszcze <span class="lesson-eq">4</span>, masz razem <span class="lesson-eq">7</span>. Liczby które dodajesz to <strong>składniki</strong>, a wynik to <strong>suma</strong>.</p>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">🔄</span>Przemienność</h3>
+                    <p>Kolejność składników nie zmienia wyniku: <span class="lesson-eq">a + b = b + a</span>.</p>
+                    <div class="lesson-examples">
+                        <div class="lesson-example">3 + 5 = 8<small>= 5 + 3</small></div>
+                        <div class="lesson-example">12 + 7 = 19<small>= 7 + 12</small></div>
+                    </div>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">🔗</span>Łączność</h3>
+                    <p>Możesz dodawać w dowolnej kolejności — <span class="lesson-eq">(a + b) + c = a + (b + c)</span>. Jeśli to ułatwia, najpierw zsumuj te liczby które się ładnie zaokrąglają.</p>
+                    <div class="lesson-examples">
+                        <div class="lesson-example">17 + 8 + 3<small>= 17 + 11 = 28</small></div>
+                        <div class="lesson-example">17 + 3 + 8<small>= 20 + 8 = 28</small></div>
+                    </div>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">⚪</span>Element neutralny</h3>
+                    <p>Dodawanie zera nic nie zmienia: <span class="lesson-eq">a + 0 = a</span>.</p>
+                </section>
+
+                <section class="lesson-section lesson-tip">
+                    <h3><span class="lesson-icon">💡</span>Trick: uzupełnianie do dziesiątki</h3>
+                    <p>Najszybciej liczy się gdy wyniki "zaokrąglają się" do <strong>10, 20, 100</strong>. Przy <span class="lesson-eq">8 + 7</span> rozłóż <span class="lesson-eq">7 = 2 + 5</span>: <span class="lesson-eq">8 + 2 = 10</span>, potem <span class="lesson-eq">+ 5 = 15</span>. Zamiast pamiętać tabelę, używaj 10 jako "punktu odpoczynku".</p>
+                </section>
+            `
+        },
+
+        sub: {
+            title: 'Odejmowanie',
+            subtitle: 'Zabieramy część — szukamy różnicy',
+            theme: 'sub',
+            html: `
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">📖</span>Co to jest odejmowanie?</h3>
+                    <p>Odejmowanie to <strong>zabieranie</strong> jednej liczby od drugiej. Wynik nazywamy <strong>różnicą</strong>. Jeśli masz <span class="lesson-eq">10</span> cukierków i zjesz <span class="lesson-eq">3</span>, zostaje <span class="lesson-eq">7</span>.</p>
+                </section>
+
+                <section class="lesson-section lesson-warn">
+                    <h3><span class="lesson-icon">⚠️</span>NIE jest przemienne</h3>
+                    <p>Inaczej niż w dodawaniu — kolejność <strong>ma znaczenie</strong>: <span class="lesson-eq">10 - 3 = 7</span>, ale <span class="lesson-eq">3 - 10 = -7</span> (liczba ujemna). Najpierw piszemy większą liczbę, potem to co odejmujemy.</p>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">🔁</span>Sprawdzenie odpowiedzi</h3>
+                    <p>Wynik odejmowania możesz sprawdzić dodawaniem: jeśli <span class="lesson-eq">a - b = c</span>, to <span class="lesson-eq">b + c = a</span>.</p>
+                    <div class="lesson-examples">
+                        <div class="lesson-example">15 - 7 = 8<small>sprawdź: 7 + 8 = 15 ✓</small></div>
+                        <div class="lesson-example">23 - 9 = 14<small>sprawdź: 9 + 14 = 23 ✓</small></div>
+                    </div>
+                </section>
+
+                <section class="lesson-section lesson-tip">
+                    <h3><span class="lesson-icon">💡</span>Trick: dziesiątki "zostawiamy w pamięci"</h3>
+                    <p>Przy <span class="lesson-eq">42 - 17</span> rozbij na kroki: najpierw odejmij <span class="lesson-eq">10</span> — zostaje <span class="lesson-eq">32</span>. Potem <span class="lesson-eq">7</span>. Bo <span class="lesson-eq">32 - 7</span> wymaga "pożyczki": <span class="lesson-eq">32 - 2 = 30</span>, jeszcze <span class="lesson-eq">5</span> = <span class="lesson-eq">25</span>.</p>
+                </section>
+
+                <section class="lesson-section lesson-tip">
+                    <h3><span class="lesson-icon">💡</span>Trick: dopełnianie</h3>
+                    <p>Często łatwiej zapytać "ile brakuje?". <span class="lesson-eq">14 - 9</span> = "ile brakuje od 9 do 14?" → <span class="lesson-eq">9 + 1 = 10, +4 = 14</span>, więc <span class="lesson-eq">5</span>.</p>
+                </section>
+            `
+        },
+
+        mul: {
+            title: 'Mnożenie',
+            subtitle: 'Powtarzamy dodawanie wiele razy',
+            theme: 'mul',
+            html: `
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">📖</span>Co to jest mnożenie?</h3>
+                    <p>Mnożenie to <strong>skrócone dodawanie</strong> tej samej liczby kilka razy. <span class="lesson-eq">4 × 3</span> oznacza "cztery razy po trzy" = <span class="lesson-eq">3 + 3 + 3 + 3 = 12</span>. Liczby które mnożymy to <strong>czynniki</strong>, wynik to <strong>iloczyn</strong>.</p>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">🔄</span>Przemienność</h3>
+                    <p>Kolejność czynników nie zmienia wyniku: <span class="lesson-eq">a × b = b × a</span>. <span class="lesson-eq">7 × 8 = 8 × 7 = 56</span>.</p>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">⚪</span>Element neutralny i zero</h3>
+                    <p>Mnożenie przez <strong>1</strong> nic nie zmienia: <span class="lesson-eq">a × 1 = a</span>. Mnożenie przez <strong>0</strong> daje zawsze <strong>0</strong>: <span class="lesson-eq">a × 0 = 0</span>.</p>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">🧮</span>Tabliczka — najważniejsze</h3>
+                    <div class="lesson-examples">
+                        <div class="lesson-example">6 × 7 = 42</div>
+                        <div class="lesson-example">7 × 8 = 56</div>
+                        <div class="lesson-example">8 × 9 = 72</div>
+                        <div class="lesson-example">9 × 7 = 63</div>
+                    </div>
+                    <p style="margin-top: 8px;">Dwa najtrudniejsze rzędy to <strong>7</strong> i <strong>8</strong> — warto je powtarzać. Reszta wpada szybciej.</p>
+                </section>
+
+                <section class="lesson-section lesson-tip">
+                    <h3><span class="lesson-icon">💡</span>Trick: tabliczka 9</h3>
+                    <p>W mnożeniu przez <strong>9</strong>: cyfra dziesiątek to (n−1), cyfra jedności to (10−n). Np. <span class="lesson-eq">9 × 7</span>: 7−1 = 6, 10−7 = 3 → <span class="lesson-eq">63</span>. Suma cyfr wyniku zawsze daje <strong>9</strong>!</p>
+                </section>
+
+                <section class="lesson-section lesson-tip">
+                    <h3><span class="lesson-icon">💡</span>Rozdzielność (sztuczka na trudne)</h3>
+                    <p><span class="lesson-eq">a × (b + c) = a × b + a × c</span>. Trudne <span class="lesson-eq">7 × 13</span>? Zrób <span class="lesson-eq">7 × 10 + 7 × 3 = 70 + 21 = 91</span>.</p>
+                </section>
+            `
+        },
+
+        div: {
+            title: 'Dzielenie',
+            subtitle: 'Rozdzielamy na równe części',
+            theme: 'div',
+            html: `
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">📖</span>Co to jest dzielenie?</h3>
+                    <p>Dzielenie to <strong>podział</strong> liczby na równe części. <span class="lesson-eq">12 ÷ 4</span> oznacza "podziel 12 na 4 równe części" — każda będzie miała <span class="lesson-eq">3</span>. Liczba dzielona to <strong>dzielna</strong>, dzielnik to przez ile dzielimy, wynik to <strong>iloraz</strong>.</p>
+                </section>
+
+                <section class="lesson-section lesson-warn">
+                    <h3><span class="lesson-icon">⚠️</span>NIE jest przemienne</h3>
+                    <p>Tak jak odejmowanie — kolejność ma znaczenie: <span class="lesson-eq">12 ÷ 4 = 3</span>, ale <span class="lesson-eq">4 ÷ 12</span> ≈ <span class="lesson-eq">0,33</span>.</p>
+                </section>
+
+                <section class="lesson-section lesson-warn">
+                    <h3><span class="lesson-icon">🚫</span>Dzielenie przez zero</h3>
+                    <p><strong>Niemożliwe.</strong> Nie da się rozdzielić niczego na zero części. Przy <span class="lesson-eq">a ÷ 0</span> matematyka zatrzymuje się — wynik nie istnieje.</p>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">🔁</span>Sprawdzenie odpowiedzi</h3>
+                    <p>Dzielenie to "odwrotność" mnożenia: jeśli <span class="lesson-eq">a ÷ b = c</span>, to <span class="lesson-eq">b × c = a</span>.</p>
+                    <div class="lesson-examples">
+                        <div class="lesson-example">56 ÷ 7 = 8<small>sprawdź: 7 × 8 = 56 ✓</small></div>
+                        <div class="lesson-example">81 ÷ 9 = 9<small>sprawdź: 9 × 9 = 81 ✓</small></div>
+                    </div>
+                </section>
+
+                <section class="lesson-section lesson-tip">
+                    <h3><span class="lesson-icon">💡</span>Trick: szukaj w tabliczce</h3>
+                    <p>Przy <span class="lesson-eq">42 ÷ 6</span> zapytaj: "6 razy ile to 42?". Z tabliczki: <span class="lesson-eq">6 × 7 = 42</span>, więc odpowiedź to <span class="lesson-eq">7</span>. Dzielenie i mnożenie to dwie strony tej samej monety.</p>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">📐</span>Reszta z dzielenia</h3>
+                    <p>Nie zawsze liczby dzielą się "równo". <span class="lesson-eq">17 ÷ 5</span> = <span class="lesson-eq">3</span> reszta <span class="lesson-eq">2</span> (bo <span class="lesson-eq">5 × 3 = 15</span>, do 17 brakuje 2). W tej grze zawsze trafiasz w działania bez reszty — żeby było czysto.</p>
+                </section>
+            `
+        },
+
+        mix: {
+            title: 'Losowy mix',
+            subtitle: 'Wszystkie cztery działania pomieszane',
+            theme: 'mix',
+            html: `
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">🎲</span>Co Cię tu czeka?</h3>
+                    <p>W trybie mix dostajesz <strong>na zmianę</strong> dodawanie, odejmowanie, mnożenie i dzielenie — losowo. To prawdziwy test refleksu — musisz natychmiast rozpoznać znak działania i przełączyć tryb myślenia.</p>
+                </section>
+
+                <section class="lesson-section">
+                    <h3><span class="lesson-icon">📚</span>Sprawdź zasady każdego działania</h3>
+                    <p>Każda misja ma swoją mini-lekcję. Wróć do ekranu i kliknij <strong>?</strong> przy:</p>
+                    <div class="lesson-examples">
+                        <div class="lesson-example">➕ Dodawanie</div>
+                        <div class="lesson-example">➖ Odejmowanie</div>
+                        <div class="lesson-example">✖️ Mnożenie</div>
+                        <div class="lesson-example">➗ Dzielenie</div>
+                    </div>
+                </section>
+
+                <section class="lesson-section lesson-tip">
+                    <h3><span class="lesson-icon">💡</span>Trick na mix: rozpoznaj znak najpierw</h3>
+                    <p>Zanim zaczniesz liczyć — spójrz <strong>tylko na znak</strong> działania (➕ ➖ ✖️ ➗). Twój mózg automatycznie przełączy się w odpowiedni tryb. Próba liczenia bez tej "chwili oddechu" prowadzi do błędów.</p>
+                </section>
+
+                <section class="lesson-section lesson-tip">
+                    <h3><span class="lesson-icon">🔥</span>Strategia na combo</h3>
+                    <p>W mixie najtrudniej utrzymać długą serię. Trick: jeżeli pytanie wydaje Ci się trudne, weź sekundę dłużej zamiast strzelać. Combo zerujesz przy jednym błędzie, więc lepsze 5 sekund spokoju niż 1 sekunda i pomyłka.</p>
+                </section>
+            `
+        }
+    };
+
+    let lessonModeInQueue = null; // dla 'Zacznij grać' przycisku w stopce
+
+    function showLesson(mode) {
+        const data = lessons[mode];
+        if (!data) return;
+        lessonModeInQueue = mode;
+        document.getElementById('lesson-title').textContent = data.title;
+        document.getElementById('lesson-subtitle').textContent = data.subtitle;
+        document.getElementById('lesson-content').innerHTML = data.html;
+        const header = document.getElementById('lesson-header');
+        header.className = 'modal-header theme-' + data.theme;
+        // Scroll body do gory
+        const body = document.querySelector('#modal-lesson .modal-body');
+        if (body) body.scrollTop = 0;
+        document.getElementById('modal-lesson').style.display = 'flex';
+    }
+
+    function closeLesson() {
+        document.getElementById('modal-lesson').style.display = 'none';
+        lessonModeInQueue = null;
+    }
+
+    function lessonStartGame() {
+        const mode = lessonModeInQueue;
+        closeLesson();
+        if (mode) startGame(mode);
+    }
+
     /* ---- EDIT PROFILE modal ---- */
     function showEditProfile() {
         const modal = document.getElementById('modal-edit-profile');
@@ -2530,6 +2754,12 @@
                     case 'topListTab': topListTab(arg); break;
                     case 'lbScope': lbScope(arg); break;
                     case 'lbFilter': lbFilter(arg); break;
+                    case 'showLesson':
+                        ev.stopPropagation();
+                        showLesson(arg);
+                        break;
+                    case 'closeLesson': closeLesson(); break;
+                    case 'lessonStartGame': lessonStartGame(); break;
                     case 'closeReportSmart': {
                         // Archive view (came from leaderboard) -> back to leaderboard.
                         // Live view (just finished a game) -> close & go to setup.

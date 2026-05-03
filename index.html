@@ -217,26 +217,41 @@
                                 <span class="helper-text">Ćwicz konkretną umiejętność albo mix</span>
                             </div>
                             <div class="mode-grid">
-                                <button class="btn-mode bg-add" type="button" data-action="startGame" data-arg="add">
-                                    <span class="mode-title"><span class="mode-icon">➕</span> Dodawanie</span>
-                                    <span class="mode-subtitle">Buduj pewność i tempo liczenia</span>
-                                </button>
-                                <button class="btn-mode bg-sub" type="button" data-action="startGame" data-arg="sub">
-                                    <span class="mode-title"><span class="mode-icon">➖</span> Odejmowanie</span>
-                                    <span class="mode-subtitle">Ćwicz skupienie i dokładność</span>
-                                </button>
-                                <button class="btn-mode bg-mul" type="button" data-action="startGame" data-arg="mul">
-                                    <span class="mode-title"><span class="mode-icon">✖️</span> Mnożenie</span>
-                                    <span class="mode-subtitle">Wzmacniaj pamięć tabliczki</span>
-                                </button>
-                                <button class="btn-mode bg-div" type="button" data-action="startGame" data-arg="div">
-                                    <span class="mode-title"><span class="mode-icon">➗</span> Dzielenie</span>
-                                    <span class="mode-subtitle">Ucz się logicznych zależności</span>
-                                </button>
-                                <button class="btn-mode bg-mix" type="button" data-action="startGame" data-arg="mix">
-                                    <span class="mode-title"><span class="mode-icon">🎲</span> Losowy mix</span>
-                                    <span class="mode-subtitle">Kolorowa mieszanka wszystkich działań</span>
-                                </button>
+                                <div class="mode-cell">
+                                    <button class="btn-mode bg-add" type="button" data-action="startGame" data-arg="add">
+                                        <span class="mode-title"><span class="mode-icon">➕</span> Dodawanie</span>
+                                        <span class="mode-subtitle">Buduj pewność i tempo liczenia</span>
+                                    </button>
+                                    <button class="mode-info-btn" type="button" data-action="showLesson" data-arg="add" aria-label="Lekcja: Dodawanie">?</button>
+                                </div>
+                                <div class="mode-cell">
+                                    <button class="btn-mode bg-sub" type="button" data-action="startGame" data-arg="sub">
+                                        <span class="mode-title"><span class="mode-icon">➖</span> Odejmowanie</span>
+                                        <span class="mode-subtitle">Ćwicz skupienie i dokładność</span>
+                                    </button>
+                                    <button class="mode-info-btn" type="button" data-action="showLesson" data-arg="sub" aria-label="Lekcja: Odejmowanie">?</button>
+                                </div>
+                                <div class="mode-cell">
+                                    <button class="btn-mode bg-mul" type="button" data-action="startGame" data-arg="mul">
+                                        <span class="mode-title"><span class="mode-icon">✖️</span> Mnożenie</span>
+                                        <span class="mode-subtitle">Wzmacniaj pamięć tabliczki</span>
+                                    </button>
+                                    <button class="mode-info-btn" type="button" data-action="showLesson" data-arg="mul" aria-label="Lekcja: Mnożenie">?</button>
+                                </div>
+                                <div class="mode-cell">
+                                    <button class="btn-mode bg-div" type="button" data-action="startGame" data-arg="div">
+                                        <span class="mode-title"><span class="mode-icon">➗</span> Dzielenie</span>
+                                        <span class="mode-subtitle">Ucz się logicznych zależności</span>
+                                    </button>
+                                    <button class="mode-info-btn" type="button" data-action="showLesson" data-arg="div" aria-label="Lekcja: Dzielenie">?</button>
+                                </div>
+                                <div class="mode-cell">
+                                    <button class="btn-mode bg-mix" type="button" data-action="startGame" data-arg="mix">
+                                        <span class="mode-title"><span class="mode-icon">🎲</span> Losowy mix</span>
+                                        <span class="mode-subtitle">Kolorowa mieszanka wszystkich działań</span>
+                                    </button>
+                                    <button class="mode-info-btn" type="button" data-action="showLesson" data-arg="mix" aria-label="Lekcja: Losowy mix">?</button>
+                                </div>
                             </div>
                         </section>
                     </div>
@@ -542,6 +557,25 @@
             <div class="modal-footer">
                 <div class="modal-btn-row">
                     <button class="btn-big btn-secondary" type="button" data-action="closeSettings">Zamknij</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-lesson" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header" id="lesson-header">
+                <button class="modal-close" type="button" data-action="closeLesson" aria-label="Zamknij">×</button>
+                <h2 id="lesson-title">Mini-lekcja</h2>
+                <p style="margin: 6px 0 0; color: rgba(255,255,255,0.85); font-weight: 600; font-size: 13px;" id="lesson-subtitle">Krótkie wprowadzenie do tematu</p>
+            </div>
+            <div class="modal-body" id="lesson-content">
+                <!-- generowane przez JS — patrz showLesson() -->
+            </div>
+            <div class="modal-footer">
+                <div class="modal-btn-row">
+                    <button class="btn-big" type="button" id="lesson-start-btn" data-action="lessonStartGame">▶ Zacznij grać</button>
+                    <button class="btn-big btn-secondary" type="button" data-action="closeLesson">Zamknij</button>
                 </div>
             </div>
         </div>
