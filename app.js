@@ -251,15 +251,20 @@
         }
     }
 
-    /** Pobierz wyniki ZALOGOWANEGO usera z bazy (cross-device sync). */
-    async function cloudFetchMyResults(limit, modeFilter) {
+    /** Pobierz wyniki ZALOGOWANEGO usera z bazy (cross-device sync).
+        Default sort: played_at DESC (najnowsze na górze) — historia gier.
+        Override przez sortBy: 'score' aby dostać top-N. */
+    async function cloudFetchMyResults(limit, modeFilter, sortBy) {
         if (!cloudReady || !cloudUser) return [];
         try {
             let q = sb.from('game_results')
                 .select('*')
-                .eq('user_id', cloudUser.id)
-                .order('score', { ascending: false })
-                .order('played_at', { ascending: false });
+                .eq('user_id', cloudUser.id);
+            if (sortBy === 'score') {
+                q = q.order('score', { ascending: false }).order('played_at', { ascending: false });
+            } else {
+                q = q.order('played_at', { ascending: false });
+            }
             if (modeFilter && modeFilter !== 'all') q = q.eq('mode', modeFilter);
             q = q.limit(limit || 20);
             const { data, error } = await q;
@@ -2214,8 +2219,19 @@
             }));
             isCloud = true;
         } else {
-            // Anon / offline — local
-            entries = loadLeaderboardData();
+            // Anon / offline — local. Sortuj po dacie malejaco (newest first).
+            entries = loadLeaderboardData().slice();
+            entries.sort((a, b) => {
+                // entry.d to string typu '30.04.2026, 22:00'. Probujemy parsowac;
+                // jezeli sie nie uda — zostawiamy istniejaca kolejnosc.
+                const parse = (s) => {
+                    if (!s) return 0;
+                    const m = String(s).match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})[, ]+(\d{1,2}):(\d{2})/);
+                    if (!m) return 0;
+                    return new Date(2000 + (m[3] % 100), m[2] - 1, m[1], m[4], m[5]).getTime();
+                };
+                return parse(b.d) - parse(a.d);
+            });
             if (lbState.filter !== 'all') entries = entries.filter(e => e.m === lbState.filter);
         }
 
@@ -2563,8 +2579,8 @@
             const cloud = await cloudFetchGlobalTop(3);
             entries = cloud.map(c => ({ n: c.username, a: c.avatar, s: c.score, m: c.mode, diff: c.difficulty }));
         } else if (profileTopMode === 'my' && cloudUser && cloudUser._persistent && cloudReady) {
-            // Zalogowany — ciągnij z cloud (cross-device)
-            const cloud = await cloudFetchMyResults(3);
+            // Zalogowany — ciągnij z cloud, TOP po score (to "Najlepsze wyniki", nie historia)
+            const cloud = await cloudFetchMyResults(3, null, 'score');
             entries = cloud.map(c => ({ n: cloudUser.profile && cloudUser.profile.username || user.name, a: cloudUser.profile && cloudUser.profile.avatar || user.avatar, s: c.score, m: c.mode, diff: c.difficulty }));
         } else {
             // Anon / brak chmury — local storage
