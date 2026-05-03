@@ -276,6 +276,83 @@
         }
     }
 
+    /** Fetch agregowanych rankingów (klasy/szkoły/miasta). */
+    async function cloudFetchAggregated(view, limit) {
+        if (!cloudReady) return [];
+        try {
+            const { data, error } = await sb.from(view).select('*').limit(limit || 50);
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.warn(`[cloud] fetch ${view} failed:`, e && e.message);
+            return [];
+        }
+    }
+
+    /** Top wyniki w danej szkole. */
+    async function cloudFetchSchoolTop(school, limit, modeFilter) {
+        if (!cloudReady || !school) return [];
+        try {
+            let q = sb.from('leaderboard_global').select('*').eq('school', school);
+            if (modeFilter && modeFilter !== 'all') q = q.eq('mode', modeFilter);
+            q = q.limit(limit || 20);
+            const { data, error } = await q;
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.warn('[cloud] fetch school top failed', e && e.message);
+            return [];
+        }
+    }
+
+    /** Top wyniki w danej klasie (school + class_name). */
+    async function cloudFetchClassTop(school, className, limit, modeFilter) {
+        if (!cloudReady || !school || !className) return [];
+        try {
+            let q = sb.from('leaderboard_global').select('*')
+                .eq('school', school).eq('class_name', className);
+            if (modeFilter && modeFilter !== 'all') q = q.eq('mode', modeFilter);
+            q = q.limit(limit || 20);
+            const { data, error } = await q;
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.warn('[cloud] fetch class top failed', e && e.message);
+            return [];
+        }
+    }
+
+    /** Top wyniki w danym mieście. */
+    async function cloudFetchCityTop(city, limit, modeFilter) {
+        if (!cloudReady || !city) return [];
+        try {
+            let q = sb.from('leaderboard_global').select('*').eq('city', city);
+            if (modeFilter && modeFilter !== 'all') q = q.eq('mode', modeFilter);
+            q = q.limit(limit || 20);
+            const { data, error } = await q;
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.warn('[cloud] fetch city top failed', e && e.message);
+            return [];
+        }
+    }
+
+    /** Rankingi agregowane: top szkół / klas / miast. */
+    async function cloudFetchRanking(kind, limit) {
+        if (!cloudReady) return [];
+        const view = { schools: 'ranking_schools', classes: 'ranking_classes', cities: 'ranking_cities' }[kind];
+        if (!view) return [];
+        try {
+            const { data, error } = await sb.from(view).select('*').limit(limit || 20);
+            if (error) throw error;
+            return data || [];
+        } catch (e) {
+            console.warn(`[cloud] fetch ranking ${kind} failed`, e && e.message);
+            return [];
+        }
+    }
+
     /** Update profilu (school/class/city/journal/avatar) przez RPC. */
     async function cloudUpdateProfile(fields) {
         if (!cloudReady) throw new Error('Brak połączenia z chmurą');
@@ -2389,12 +2466,20 @@
         });
     }
 
-    let lbState = { scope: 'my', filter: 'all' };
+    let lbState = { scope: 'my', filter: 'all', rankingKind: 'schools' };
 
     async function showLeaderboard() {
         document.getElementById("modal-leaderboard").style.display = "flex";
         // Reset do default state
-        lbState = { scope: 'my', filter: 'all' };
+        lbState = { scope: 'my', filter: 'all', rankingKind: 'schools' };
+        // Pokaz/ukryj taby zaleznie od profilu
+        const profile = (cloudUser && cloudUser.profile) || {};
+        const tabClass = document.querySelector('.lb-tab-class');
+        const tabSchool = document.querySelector('.lb-tab-school');
+        const tabCity = document.querySelector('.lb-tab-city');
+        if (tabClass) tabClass.style.display = (profile.class_name && profile.school) ? '' : 'none';
+        if (tabSchool) tabSchool.style.display = profile.school ? '' : 'none';
+        if (tabCity) tabCity.style.display = profile.city ? '' : 'none';
         updateLbControlsUI();
         await renderLeaderboard();
     }
@@ -2402,6 +2487,9 @@
     function updateLbControlsUI() {
         document.querySelectorAll('.lb-tab').forEach(t => t.classList.toggle('active', t.dataset.arg === lbState.scope));
         document.querySelectorAll('.lb-filter').forEach(f => f.classList.toggle('active', f.dataset.arg === lbState.filter));
+        // Filtry mode-owe ukryj na rankingach (top szkol/klas/miast nie filtruje sie po misjach)
+        const filters = document.getElementById('lb-filters');
+        if (filters) filters.style.display = lbState.scope === 'rankings' ? 'none' : '';
     }
 
     function lbScope(scope) {
@@ -2418,19 +2506,41 @@
 
     async function renderLeaderboard() {
         const container = document.getElementById("leaderboard-content");
+        const filterRow = document.getElementById('lb-filters');
         container.innerHTML = '<p class="muted-empty">⏳ Wczytuję wyniki...</p>';
+
+        // Filtry trybu sa relevantne tylko dla wynikow individualnych
+        if (filterRow) filterRow.style.display = lbState.scope === 'rankings' ? 'none' : '';
+
+        // RANKINGI (top szkol/klas/miast) — osobny renderer z sub-tabami
+        if (lbState.scope === 'rankings') {
+            await renderRankingsContent(container);
+            return;
+        }
+
+        const profile = (cloudUser && cloudUser.profile) || {};
+        const mapEntry = (c) => ({
+            n: c.username, a: c.avatar, s: c.score,
+            m: c.mode, diff: c.difficulty, t: c.duration_minutes,
+            d: c.played_at ? new Date(c.played_at).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '',
+            school: c.school, class_name: c.class_name, city: c.city,
+            _id: c.id, _history: c.history
+        });
 
         let entries = [];
         let isCloud = false;
-        if (lbState.scope === 'global' && cloudReady) {
-            const cloud = await cloudFetchGlobalTop(20, lbState.filter);
-            entries = cloud.map(c => ({
-                n: c.username, a: c.avatar, s: c.score,
-                m: c.mode, diff: c.difficulty, t: c.duration_minutes,
-                d: c.played_at ? new Date(c.played_at).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '',
-                school: c.school, class_name: c.class_name, city: c.city,
-                _id: c.id
-            }));
+
+        if (lbState.scope === 'class' && cloudReady && profile.school && profile.class_name) {
+            entries = (await cloudFetchClassTop(profile.school, profile.class_name, 20, lbState.filter)).map(mapEntry);
+            isCloud = true;
+        } else if (lbState.scope === 'school' && cloudReady && profile.school) {
+            entries = (await cloudFetchSchoolTop(profile.school, 20, lbState.filter)).map(mapEntry);
+            isCloud = true;
+        } else if (lbState.scope === 'city' && cloudReady && profile.city) {
+            entries = (await cloudFetchCityTop(profile.city, 20, lbState.filter)).map(mapEntry);
+            isCloud = true;
+        } else if (lbState.scope === 'global' && cloudReady) {
+            entries = (await cloudFetchGlobalTop(20, lbState.filter)).map(mapEntry);
             isCloud = true;
         } else if (lbState.scope === 'my' && cloudUser && cloudUser._persistent && cloudReady) {
             const cloud = await cloudFetchMyResults(20, lbState.filter);
@@ -2446,8 +2556,6 @@
             // Anon / offline — local. Sortuj po dacie malejaco (newest first).
             entries = loadLeaderboardData().slice();
             entries.sort((a, b) => {
-                // entry.d to string typu '30.04.2026, 22:00'. Probujemy parsowac;
-                // jezeli sie nie uda — zostawiamy istniejaca kolejnosc.
                 const parse = (s) => {
                     if (!s) return 0;
                     const m = String(s).match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})[, ]+(\d{1,2}):(\d{2})/);
@@ -2475,8 +2583,6 @@
             const row = document.createElement("button");
             row.type = "button";
             row.className = "leaderboard-entry";
-            // Klik otwiera archiwum dla offline (po indeksie) — dla cloud nie obslugujemy
-            // pelnego raportu (history mozemy w przyszlosci dociągnac)
             if (!isCloud) {
                 row.onclick = () => loadArchive(entries.indexOf(entry));
             } else if (entry._history) {
@@ -2509,6 +2615,114 @@
             list.appendChild(row);
         });
 
+        container.appendChild(list);
+    }
+
+    /** Render zakladki "Rankingi" — sub-tabs Szkoly/Klasy/Miasta. */
+    async function renderRankingsContent(container) {
+        const kind = lbState.rankingKind || 'schools';
+        const viewMap = { schools: 'leaderboard_schools', classes: 'leaderboard_classes', cities: 'leaderboard_cities' };
+        const view = viewMap[kind];
+
+        // Sub-tabs UI
+        const subTabsHtml = `
+            <div class="lb-rankings-tabs">
+                <button class="lb-rsubtab ${kind === 'schools' ? 'active' : ''}" data-action="lbRankingKind" data-arg="schools" type="button">📚 Szkoły</button>
+                <button class="lb-rsubtab ${kind === 'classes' ? 'active' : ''}" data-action="lbRankingKind" data-arg="classes" type="button">🏫 Klasy</button>
+                <button class="lb-rsubtab ${kind === 'cities'  ? 'active' : ''}" data-action="lbRankingKind" data-arg="cities"  type="button">🏙️ Miasta</button>
+            </div>
+            <div id="lb-rankings-list" class="rankings-body"><p class="muted-empty">⏳ Wczytuję ranking...</p></div>
+        `;
+        container.innerHTML = subTabsHtml;
+
+        const data = await cloudFetchAggregated(view, 50);
+        const list = container.querySelector('#lb-rankings-list');
+        if (!list) return;
+        list.innerHTML = '';
+        renderAggregateList(list, kind, data);
+    }
+
+    function lbRankingKind(kind) {
+        lbState.rankingKind = kind;
+        renderLeaderboard();
+    }
+
+    /** Render listy agregowanej (klasy / szkoły / miasta). */
+    function renderAggregateList(container, scope, data) {
+        if (!data || !data.length) {
+            const msg = {
+                classes: 'Jeszcze nikt nie podał klasy. Wypełnij profil aby budować ranking!',
+                schools: 'Jeszcze nikt nie podał szkoły. Wypełnij profil!',
+                cities: 'Jeszcze nikt nie podał miasta. Wypełnij profil!'
+            }[scope] || 'Brak danych';
+            container.innerHTML = `<p class="muted-empty">${msg}</p>`;
+            return;
+        }
+
+        // Identyfikator usera — zeby wyroznic 'twoja klasa/szkola/miasto'
+        const myProfile = cloudUser && cloudUser.profile;
+        const myKey = (() => {
+            if (!myProfile) return null;
+            if (scope === 'classes') return (myProfile.school && myProfile.class_name) ? `${myProfile.school}|${myProfile.class_name}` : null;
+            if (scope === 'schools') return myProfile.school || null;
+            if (scope === 'cities') return myProfile.city || null;
+            return null;
+        })();
+
+        container.innerHTML = '';
+        const list = document.createElement('div');
+        list.className = 'leaderboard-list aggregate-list';
+
+        data.forEach((row, idx) => {
+            const li = document.createElement('div');
+            li.className = 'leaderboard-entry agg-entry';
+
+            // Etykieta wpisu zalezy od scope
+            let mainLabel, subLabel, icon;
+            let key = '';
+            if (scope === 'classes') {
+                icon = '🏫';
+                mainLabel = `${escapeHtml(row.class_name)} · ${escapeHtml(row.school)}`;
+                subLabel = `${row.players_count} graczy · ${row.games_count} gier`;
+                key = `${row.school}|${row.class_name}`;
+            } else if (scope === 'schools') {
+                icon = '🏛️';
+                mainLabel = escapeHtml(row.school);
+                subLabel = `${row.classes_count} klas · ${row.players_count} graczy · ${row.games_count} gier`;
+                key = row.school;
+            } else {
+                icon = '🌆';
+                mainLabel = escapeHtml(row.city);
+                subLabel = `${row.schools_count} szkół · ${row.players_count} graczy · ${row.games_count} gier`;
+                key = row.city;
+            }
+
+            const isMine = myKey && key === myKey;
+            if (isMine) li.classList.add('agg-mine');
+
+            const lastPlayed = row.last_played_at
+                ? new Date(row.last_played_at).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })
+                : '';
+
+            li.innerHTML = `
+                <div class="leaderboard-top">
+                    <div class="leaderboard-player">
+                        <div class="leaderboard-rank">${idx + 1}</div>
+                        <div>
+                            <div class="leaderboard-name">${icon} ${mainLabel}${isMine ? ' <span class="agg-you">to Ty!</span>' : ''}</div>
+                            <div class="leaderboard-meta">${subLabel}</div>
+                        </div>
+                    </div>
+                    <div class="leaderboard-score">${row.total_score}</div>
+                </div>
+                <div class="leaderboard-meta agg-extra">
+                    <span>📊 śr. ${row.avg_score}</span>
+                    <span>🏆 najlepszy: ${row.best_score}</span>
+                    ${lastPlayed ? `<span>🕒 ${lastPlayed}</span>` : ''}
+                </div>
+            `;
+            list.appendChild(li);
+        });
         container.appendChild(list);
     }
 
@@ -2754,6 +2968,7 @@
                     case 'topListTab': topListTab(arg); break;
                     case 'lbScope': lbScope(arg); break;
                     case 'lbFilter': lbFilter(arg); break;
+                    case 'lbRankingKind': lbRankingKind(arg); break;
                     case 'showLesson':
                         ev.stopPropagation();
                         showLesson(arg);

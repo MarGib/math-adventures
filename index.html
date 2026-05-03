@@ -493,11 +493,15 @@
                 <h2>Tablica wyników</h2>
                 <p style="margin:8px 0 0; color: rgba(255,255,255,0.85); font-weight:600; font-size:13px;">Moje: chronologicznie (najnowsze u góry) · Globalnie: rankingiem · Klik = pełny raport</p>
                 <div class="lb-controls">
-                    <div class="lb-tabs">
+                    <div class="lb-tabs" id="lb-scope-tabs">
                         <button class="lb-tab active" type="button" data-action="lbScope" data-arg="my">👤 Moje</button>
+                        <button class="lb-tab lb-tab-class" type="button" data-action="lbScope" data-arg="class" style="display:none;">🏫 Moja klasa</button>
+                        <button class="lb-tab lb-tab-school" type="button" data-action="lbScope" data-arg="school" style="display:none;">📚 Moja szkoła</button>
+                        <button class="lb-tab lb-tab-city" type="button" data-action="lbScope" data-arg="city" style="display:none;">🏙️ Moje miasto</button>
                         <button class="lb-tab" type="button" data-action="lbScope" data-arg="global">🌐 Globalnie</button>
+                        <button class="lb-tab" type="button" data-action="lbScope" data-arg="rankings">🏆 Rankingi</button>
                     </div>
-                    <div class="lb-filters">
+                    <div class="lb-filters" id="lb-filters">
                         <button class="lb-filter active" type="button" data-action="lbFilter" data-arg="all">Wszystkie</button>
                         <button class="lb-filter" type="button" data-action="lbFilter" data-arg="add">➕ Dodawanie</button>
                         <button class="lb-filter" type="button" data-action="lbFilter" data-arg="sub">➖ Odejmowanie</button>

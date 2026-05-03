@@ -1053,6 +1053,73 @@ select {
     border-color: white;
 }
 
+/* Rankings sub-tabs (Szkoły / Klasy / Miasta) wewnątrz modal-body */
+.lb-rankings-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+    background: rgba(15, 23, 42, 0.04);
+    padding: 4px;
+    border-radius: 999px;
+    width: max-content;
+}
+
+.lb-rsubtab {
+    background: transparent;
+    border: none;
+    color: var(--ink-muted);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.lb-rsubtab:hover { background: rgba(15, 118, 110, 0.08); }
+
+.lb-rsubtab.active {
+    background: white;
+    color: var(--c-teal-dark);
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.10);
+}
+
+/* Aggregate ranking entries (top szkół/klas/miast) */
+.aggregate-list .agg-entry {
+    cursor: default;
+}
+
+.aggregate-list .agg-mine {
+    border-color: var(--c-amber);
+    background: linear-gradient(135deg, rgba(217, 119, 6, 0.08), white);
+}
+
+.aggregate-list .agg-you {
+    margin-left: 8px;
+    background: var(--c-amber);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.aggregate-list .agg-extra {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--ink-faint);
+}
+
+.aggregate-list .agg-extra span {
+    font-weight: 600;
+}
+
 /* Edit profile form row (klasa + nr w dzienniku obok siebie) */
 .ep-row {
     display: flex;
