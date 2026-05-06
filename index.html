@@ -130,10 +130,22 @@
 
                 <div class="btn-container-bottom">
                     <button class="btn-big" type="button" data-action="goToSetup">Start misji ➜</button>
-                    <button class="btn-big btn-secondary" type="button" data-action="showLeaderboard">Tablica wyników</button>
-                    <button class="btn-big btn-secondary" type="button" data-action="showAccount">👤 Konto</button>
-                    <button class="btn-big btn-secondary" type="button" data-action="showHowto">📖 Jak grać</button>
-                    <button class="btn-big btn-secondary" type="button" data-action="showSettings">⚙️ Ustawienia</button>
+                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showLeaderboard">Tablica wyników</button>
+                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showAccount">👤 Konto</button>
+                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showHowto">📖 Jak grać</button>
+                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showSettings">⚙️ Ustawienia</button>
+                    <button class="btn-hamburger btn-secondary" type="button" data-action="toggleNavMenu" aria-label="Menu nawigacyjne" aria-expanded="false">☰</button>
+                </div>
+
+                <!-- Szuflada nawigacyjna — widoczna tylko na mobile po kliknięciu ☰ -->
+                <div class="nav-drawer" id="nav-drawer" aria-hidden="true">
+                    <div class="nav-drawer-backdrop" data-action="closeNavMenu"></div>
+                    <div class="nav-drawer-panel" role="menu">
+                        <button class="btn-big btn-secondary" type="button" data-action="showLeaderboard" role="menuitem">🏆 Tablica wyników</button>
+                        <button class="btn-big btn-secondary" type="button" data-action="showAccount" role="menuitem">👤 Konto</button>
+                        <button class="btn-big btn-secondary" type="button" data-action="showHowto" role="menuitem">📖 Jak grać</button>
+                        <button class="btn-big btn-secondary" type="button" data-action="showSettings" role="menuitem">⚙️ Ustawienia</button>
+                    </div>
                 </div>
             </div>
 
