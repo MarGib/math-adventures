@@ -1789,16 +1789,20 @@
 
     function renderWelcomeBack() {
         const banner = document.getElementById('welcome-back');
+        const grid = document.querySelector('.profile-grid');
         const last = loadLastUser();
         if (!banner) return;
         if (!last) {
             banner.style.display = 'none';
+            if (grid) grid.style.display = '';
             return;
         }
         document.getElementById('welcome-avatar').textContent = last.avatar;
         document.getElementById('welcome-name').textContent = `Witaj, ${last.name}!`;
         document.getElementById('welcome-meta').textContent = `Ostatnia gra: ${formatRelativeTime(last.ts)}`;
         banner.style.display = 'flex';
+        // Ukryj formularz gdy użytkownik jest już rozpoznany — dostępny przez "Inny gracz"
+        if (grid) grid.style.display = 'none';
     }
 
     function welcomeContinue() {
@@ -2110,6 +2114,8 @@
     function welcomeChange() {
         const banner = document.getElementById('welcome-back');
         if (banner) banner.style.display = 'none';
+        const grid = document.querySelector('.profile-grid');
+        if (grid) grid.style.display = '';
         // Scroll user to the form so they can change name/avatar
         const form = document.querySelector('.profile-form-card');
         if (form) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2987,9 +2993,36 @@
                         }
                         break;
                     }
+                    case 'toggleNavMenu': toggleNavMenu(); break;
+                    case 'closeNavMenu': closeNavMenu(); break;
+                }
+                // Zamknij szufladę po kliknięciu przycisku nawigacyjnego wewnątrz niej
+                if (['showLeaderboard','showAccount','showHowto','showSettings'].includes(action)) {
+                    closeNavMenu();
                 }
             });
         });
+    }
+
+    function toggleNavMenu() {
+        const drawer = document.getElementById('nav-drawer');
+        if (!drawer) return;
+        const isOpen = drawer.classList.contains('is-open');
+        if (isOpen) {
+            closeNavMenu();
+        } else {
+            drawer.classList.add('is-open');
+            const btn = document.querySelector('[data-action="toggleNavMenu"]');
+            if (btn) btn.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    function closeNavMenu() {
+        const drawer = document.getElementById('nav-drawer');
+        if (!drawer) return;
+        drawer.classList.remove('is-open');
+        const btn = document.querySelector('[data-action="toggleNavMenu"]');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
     }
 
     function startQuoteRotation() {

@@ -838,13 +838,10 @@ select {
 
 .avatar-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    /* auto-fill: tyle kolumn ile sie zmiesci, min 64px, max 1fr */
+    grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
     gap: 8px;
-    max-width: 480px;
-    margin: 0 auto;
     width: 100%;
-    /* Adaptacyjna wysokosc — na tall desktopie maks 360, na shortym min 200,
-       40vh sweet spot pomiedzy. min-height: 0 wymagane do flex scroll. */
     max-height: clamp(220px, 40vh, 380px);
     min-height: 0;
     overflow-y: auto;
@@ -1379,6 +1376,70 @@ select {
     box-shadow: var(--shadow-md);
     background: rgba(15, 118, 110, 0.04);
     border-color: var(--c-teal);
+}
+
+/* ---- Hamburger button — ukryty na desktopie ---- */
+.btn-hamburger {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    width: 48px;
+    height: 48px;
+    padding: 0;
+    border-radius: 12px;
+    flex-shrink: 0;
+}
+
+/* ---- Nav drawer (mobile slide-up) ---- */
+.nav-drawer {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    pointer-events: none;
+}
+
+.nav-drawer.is-open {
+    pointer-events: auto;
+}
+
+.nav-drawer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.nav-drawer.is-open .nav-drawer-backdrop {
+    opacity: 1;
+}
+
+.nav-drawer-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.18);
+    transform: translateY(110%);
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.nav-drawer.is-open .nav-drawer-panel {
+    transform: translateY(0);
+}
+
+.nav-drawer-panel .btn-big {
+    font-size: 15px;
+    padding: 14px 20px;
+    text-align: left;
 }
 
 .btn-danger {
@@ -3501,7 +3562,6 @@ select {
     }
     .avatar-grid {
         gap: 8px;
-        max-width: 420px;
     }
     .avatar-option {
         font-size: 24px;
@@ -3610,9 +3670,44 @@ select {
         font-size: 14px;
         padding: 12px 18px;
     }
+    /* Stały pasek na dole z głównym przyciskiem + hamburgerem */
     .btn-container-bottom {
-        gap: 8px;
-        padding: 8px;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.08);
+    }
+    .btn-container-bottom .btn-big:first-child {
+        flex: 1;
+    }
+    /* Ukryj dodatkowe przyciski na mobile — dostępne przez hamburger */
+    .btn-nav-extra {
+        display: none !important;
+    }
+    /* Pokaż hamburger na mobile */
+    .btn-hamburger {
+        display: flex;
+    }
+    /* Pokaż szufladę nawigacyjną */
+    .nav-drawer {
+        display: block;
+    }
+    /* Dodaj odstęp na dole ekranu dla stałego paska */
+    .profile-main,
+    .setup-main {
+        padding-bottom: 80px;
     }
     /* Tab bar — full width, larger hit area */
     .tab-bar {
@@ -3683,7 +3778,6 @@ select {
     .input-name { padding: 10px 14px; font-size: 16px; }
     .avatar-grid {
         gap: 6px;
-        max-width: 420px;
         max-height: clamp(180px, 32vh, 300px);
     }
     .avatar-option { font-size: clamp(28px, 4.2vmin, 52px); border-radius: 10px; }
@@ -3888,6 +3982,7 @@ select {
         padding: 8px;
     }
     body.game-active .btn-container-bottom {
+        position: static;
         padding: 4px;
         gap: 6px;
         flex: 0 0 auto;
