@@ -47,17 +47,42 @@
                 <button class="fullscreen-btn" type="button" aria-label="Pełny ekran" data-action="toggleFullScreen">⛶</button>
 
                 <div class="profile-main">
-                    <section class="panel-card welcome-back" id="welcome-back" style="display:none;">
-                        <div class="welcome-avatar" id="welcome-avatar" aria-hidden="true">🦉</div>
-                        <div class="welcome-text">
-                            <span class="welcome-kicker">Witaj ponownie!</span>
-                            <h2 id="welcome-name">Graczu</h2>
-                            <p id="welcome-meta">Ostatnia gra: dawno temu</p>
+
+                    <!-- ======= WELCOME HERO CARD (powracający gracz) ======= -->
+                    <section class="welcome-hero" id="welcome-back" style="display:none;">
+                        <div class="wh-body">
+                            <div class="wh-avatar-wrap">
+                                <div class="wh-avatar" id="welcome-avatar" aria-hidden="true">🦉</div>
+                                <div class="wh-avatar-ring"></div>
+                            </div>
+                            <div class="wh-identity">
+                                <span class="wh-kicker">WITAJ PONOWNIE!</span>
+                                <h2 class="wh-name" id="welcome-name">Graczu</h2>
+                                <p class="wh-meta" id="welcome-meta">Ostatnia gra: dawno temu</p>
+                            </div>
+                            <div class="wh-stats-mini" id="wh-stats-mini">
+                                <div class="wh-stat">
+                                    <span class="wh-stat-val" id="stat-best">—</span>
+                                    <span class="wh-stat-lbl">Rekord</span>
+                                </div>
+                                <div class="wh-stat-divider"></div>
+                                <div class="wh-stat">
+                                    <span class="wh-stat-val" id="stat-games">—</span>
+                                    <span class="wh-stat-lbl">Gier</span>
+                                </div>
+                                <div class="wh-stat-divider"></div>
+                                <div class="wh-stat">
+                                    <span class="wh-stat-val" id="stat-avg">—</span>
+                                    <span class="wh-stat-lbl">Średni</span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="welcome-actions">
-                            <button class="btn-big" type="button" data-action="welcomeContinue">Zagraj ponownie ➜</button>
-                            <button class="link-btn" type="button" data-action="showEditProfile">✏️ Edytuj profil</button>
-                            <button class="link-btn" type="button" data-action="welcomeChange">↺ Inny gracz</button>
+                        <div class="wh-actions">
+                            <button class="wh-play-btn" type="button" data-action="welcomeContinue">Zagraj ponownie ➜</button>
+                            <div class="wh-links">
+                                <button class="link-btn" type="button" data-action="showEditProfile">✏️ Profil</button>
+                                <button class="link-btn" type="button" data-action="welcomeChange">↺ Inny gracz</button>
+                            </div>
                         </div>
                     </section>
 
@@ -128,25 +153,54 @@
 
                 </div>
 
-                <div class="btn-container-bottom">
-                    <button class="btn-big" type="button" data-action="goToSetup">Start misji ➜</button>
-                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showLeaderboard">Tablica wyników</button>
-                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showAccount">👤 Konto</button>
-                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showHowto">📖 Jak grać</button>
-                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showSettings">⚙️ Ustawienia</button>
-                    <button class="btn-hamburger btn-secondary" type="button" data-action="toggleNavMenu" aria-label="Menu nawigacyjne" aria-expanded="false">☰</button>
-                </div>
-
-                <!-- Szuflada nawigacyjna — widoczna tylko na mobile po kliknięciu ☰ -->
-                <div class="nav-drawer" id="nav-drawer" aria-hidden="true">
-                    <div class="nav-drawer-backdrop" data-action="closeNavMenu"></div>
-                    <div class="nav-drawer-panel" role="menu">
-                        <button class="btn-big btn-secondary" type="button" data-action="showLeaderboard" role="menuitem">🏆 Tablica wyników</button>
-                        <button class="btn-big btn-secondary" type="button" data-action="showAccount" role="menuitem">👤 Konto</button>
-                        <button class="btn-big btn-secondary" type="button" data-action="showHowto" role="menuitem">📖 Jak grać</button>
-                        <button class="btn-big btn-secondary" type="button" data-action="showSettings" role="menuitem">⚙️ Ustawienia</button>
+                <!-- ===== DESKTOP ACTION BAR ===== -->
+                <div class="profile-action-bar">
+                    <button class="pab-start" type="button" data-action="goToSetup">
+                        <span class="pab-start-arrow">▶</span> Start misji
+                    </button>
+                    <div class="pab-nav">
+                        <button class="pab-btn" type="button" data-action="showLeaderboard">
+                            <span class="pab-icon">🏆</span>
+                            <span class="pab-lbl">Ranking</span>
+                        </button>
+                        <button class="pab-btn" type="button" data-action="showAccount">
+                            <span class="pab-icon">👤</span>
+                            <span class="pab-lbl">Konto</span>
+                        </button>
+                        <button class="pab-btn" type="button" data-action="showHowto">
+                            <span class="pab-icon">📖</span>
+                            <span class="pab-lbl">Jak grać</span>
+                        </button>
+                        <button class="pab-btn" type="button" data-action="showSettings">
+                            <span class="pab-icon">⚙️</span>
+                            <span class="pab-lbl">Opcje</span>
+                        </button>
                     </div>
                 </div>
+
+                <!-- ===== MOBILE TAB BAR ===== -->
+                <nav class="mobile-tab-bar" aria-label="Nawigacja główna">
+                    <button class="mtb-tab mtb-play" type="button" data-action="goToSetup">
+                        <span class="mtb-icon">▶</span>
+                        <span class="mtb-lbl">Graj</span>
+                    </button>
+                    <button class="mtb-tab" type="button" data-action="showLeaderboard">
+                        <span class="mtb-icon">🏆</span>
+                        <span class="mtb-lbl">Ranking</span>
+                    </button>
+                    <button class="mtb-tab" type="button" data-action="showAccount">
+                        <span class="mtb-icon">👤</span>
+                        <span class="mtb-lbl">Konto</span>
+                    </button>
+                    <button class="mtb-tab" type="button" data-action="showHowto">
+                        <span class="mtb-icon">📖</span>
+                        <span class="mtb-lbl">Jak grać</span>
+                    </button>
+                    <button class="mtb-tab" type="button" data-action="showSettings">
+                        <span class="mtb-icon">⚙️</span>
+                        <span class="mtb-lbl">Opcje</span>
+                    </button>
+                </nav>
             </div>
 
             <!-- ============== SETUP SCREEN ============== -->

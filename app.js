@@ -1637,8 +1637,14 @@
     }
 
     function goToSetup() {
+        // Jeśli użytkownik nie wpisał imienia ale mamy ostatniego gracza — ładuj go
         const typedName = document.getElementById("username").value.trim();
-        if (typedName) user.name = typedName;
+        if (typedName) {
+            user.name = typedName;
+        } else if (user.name === 'Gracz') {
+            const last = loadLastUser();
+            if (last) { user.name = last.name; user.avatar = last.avatar; }
+        }
         document.getElementById("current-avatar-display").textContent = user.avatar;
         document.getElementById("greeting-name").textContent = `Cześć, ${user.name}!`;
         switchScreen("screen-setup");
@@ -1803,6 +1809,25 @@
         banner.style.display = 'flex';
         // Ukryj formularz gdy użytkownik jest już rozpoznany — dostępny przez "Inny gracz"
         if (grid) grid.style.display = 'none';
+        // Compact hero panel — znamy gracza, nie potrzeba pełnego marketingu
+        document.body.classList.add('has-returning-user');
+        // Wypełnij mini-statystyki w welcome hero card
+        renderWelcomeStats(last.name);
+    }
+
+    function renderWelcomeStats(playerName) {
+        const scores = loadLeaderboardData();
+        const mine = scores.filter(s => s.n === playerName);
+        const best = mine.length ? Math.max(...mine.map(s => s.s)) : null;
+        const avg  = mine.length ? Math.round(mine.reduce((a, s) => a + s.s, 0) / mine.length) : null;
+
+        const elBest  = document.getElementById('stat-best');
+        const elGames = document.getElementById('stat-games');
+        const elAvg   = document.getElementById('stat-avg');
+
+        if (elBest)  elBest.textContent  = best  !== null ? best  : '—';
+        if (elGames) elGames.textContent = mine.length > 0 ? mine.length : '—';
+        if (elAvg)   elAvg.textContent   = avg   !== null ? avg   : '—';
     }
 
     function welcomeContinue() {
@@ -2114,6 +2139,7 @@
     function welcomeChange() {
         const banner = document.getElementById('welcome-back');
         if (banner) banner.style.display = 'none';
+        document.body.classList.remove('has-returning-user');
         const grid = document.querySelector('.profile-grid');
         if (grid) grid.style.display = '';
         // Scroll user to the form so they can change name/avatar
