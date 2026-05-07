@@ -68,8 +68,11 @@
 
                 <div class="profile-main">
 
+                    <!-- ======= TOP ROW: welcome hero + fact widget ======= -->
+                    <div class="profile-top" id="profile-top" style="display:none;">
+
                     <!-- ======= WELCOME HERO CARD (powracający gracz) ======= -->
-                    <section class="welcome-hero" id="welcome-back" style="display:none;">
+                    <section class="welcome-hero" id="welcome-back">
                         <div class="wh-left">
                             <div class="wh-avatar-wrap">
                                 <div class="wh-avatar" id="welcome-avatar" aria-hidden="true">🦉</div>
@@ -109,6 +112,27 @@
                         </div>
                     </section>
 
+                    <!-- ======= FACT WIDGET (top-right, auto-rotacja ciekawostek) ======= -->
+                    <section class="profile-fact-widget" id="profile-fact-widget" aria-live="polite">
+                        <div class="pfw-decoration" aria-hidden="true">
+                            <span class="pfw-decoration-symbol pfw-d1">π</span>
+                            <span class="pfw-decoration-symbol pfw-d2">∞</span>
+                            <span class="pfw-decoration-symbol pfw-d3">√</span>
+                            <span class="pfw-decoration-symbol pfw-d4">Σ</span>
+                        </div>
+                        <div class="pfw-head">
+                            <span class="pfw-icon" aria-hidden="true">💡</span>
+                            <span class="pfw-kicker">Czy wiesz, że...</span>
+                            <button class="pfw-next-btn" type="button" data-action="nextFact" aria-label="Następna ciekawostka" title="Następna ciekawostka">↻</button>
+                        </div>
+                        <p class="pfw-text" id="pfw-text">Ładowanie ciekawostki matematycznej...</p>
+                        <div class="pfw-progress" aria-hidden="true">
+                            <div class="pfw-progress-bar" id="pfw-progress-bar"></div>
+                        </div>
+                    </section>
+
+                    </div><!-- /.profile-top -->
+
                     <!-- ======= DASHBOARD (powracający gracz) ======= -->
                     <div class="profile-dashboard" id="profile-dashboard" style="display:none;">
 
@@ -126,7 +150,7 @@
                             </ol>
                         </section>
 
-                        <!-- Ostatnia rozgrywka + ciekawostka matematyczna -->
+                        <!-- Ostatnia rozgrywka -->
                         <section class="panel-card pd-card pd-side">
                             <div class="pd-recent" id="pd-recent">
                                 <div class="pd-card-head">
@@ -147,12 +171,10 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="pd-fact">
-                                <div class="pd-fact-icon">💡</div>
-                                <div class="pd-fact-content">
-                                    <span class="pd-fact-kicker">Wiesz że...</span>
-                                    <p id="pd-fact-text" class="pd-fact-text">Ładowanie ciekawostki...</p>
-                                </div>
+                            <!-- Decorative spacer / motivational footer -->
+                            <div class="pd-recent-footer">
+                                <span class="pd-recent-footer-icon">🎯</span>
+                                <span class="pd-recent-footer-text">Pobij swój rekord podczas następnej misji!</span>
                             </div>
                         </section>
 

@@ -1795,21 +1795,25 @@
 
     function renderWelcomeBack() {
         const banner = document.getElementById('welcome-back');
+        const top = document.getElementById('profile-top');
         const grid = document.querySelector('.profile-grid');
         const last = loadLastUser();
         if (!banner) return;
         if (!last) {
-            banner.style.display = 'none';
+            // Brak ostatniego gracza — ukryj profile-top, pokaż formularz dla nowego
+            if (banner) banner.style.display = '';
+            if (top) top.style.display = '';
             if (grid) grid.style.display = '';
+            document.body.classList.remove('has-returning-user');
             return;
         }
         document.getElementById('welcome-avatar').textContent = last.avatar;
         document.getElementById('welcome-name').textContent = `Witaj, ${last.name}!`;
         document.getElementById('welcome-meta').textContent = `Ostatnia gra: ${formatRelativeTime(last.ts)}`;
-        banner.style.display = 'flex';
-        // Ukryj formularz gdy użytkownik jest już rozpoznany — dostępny przez "Inny gracz"
-        if (grid) grid.style.display = 'none';
-        // Compact hero panel — znamy gracza, nie potrzeba pełnego marketingu
+        // Wyczyść inline display — niech CSS body.has-returning-user steruje widocznością
+        if (banner) banner.style.display = '';
+        if (top) top.style.display = '';
+        if (grid) grid.style.display = '';
         document.body.classList.add('has-returning-user');
         // Wypełnij mini-statystyki w welcome hero card
         renderWelcomeStats(last.name);
@@ -1854,10 +1858,73 @@
     }
 
     function renderDashboardFact() {
-        const el = document.getElementById('pd-fact-text');
-        if (!el || !mathFacts || !mathFacts.length) return;
-        const idx = Math.floor(Math.random() * mathFacts.length);
-        el.textContent = mathFacts[idx];
+        // Stary widget pd-fact-text został zastąpiony przez profile-fact-widget (#pfw-text)
+        // Jeśli stary jeszcze istnieje gdzieś — wypełnij dla kompatybilności
+        const oldEl = document.getElementById('pd-fact-text');
+        if (oldEl && mathFacts && mathFacts.length) {
+            oldEl.textContent = mathFacts[Math.floor(Math.random() * mathFacts.length)];
+        }
+        // Nowy fact widget (top-right) — start auto-rotacji
+        startProfileFactRotation();
+    }
+
+    /* ===== PROFILE FACT WIDGET — auto-rotacja co 10s + manual next ===== */
+    let pfwState = { idx: 0, intervalId: null, progressId: null };
+    const PFW_INTERVAL_MS = 10000;
+
+    function startProfileFactRotation() {
+        const textEl = document.getElementById('pfw-text');
+        if (!textEl || !mathFacts || !mathFacts.length) return;
+        // Reset state if already running
+        if (pfwState.intervalId) clearInterval(pfwState.intervalId);
+        if (pfwState.progressId) clearInterval(pfwState.progressId);
+        pfwState.idx = Math.floor(Math.random() * mathFacts.length);
+        renderCurrentFact();
+        // Auto-cycle
+        pfwState.intervalId = setInterval(() => nextFact(true), PFW_INTERVAL_MS);
+        startFactProgress();
+    }
+
+    function renderCurrentFact() {
+        const textEl = document.getElementById('pfw-text');
+        if (!textEl) return;
+        textEl.textContent = mathFacts[pfwState.idx];
+        // Re-trigger animacji wejścia
+        textEl.style.animation = 'none';
+        void textEl.offsetWidth;
+        textEl.style.animation = '';
+    }
+
+    function nextFact(auto) {
+        if (!mathFacts || !mathFacts.length) return;
+        let next = pfwState.idx;
+        // Unikaj powtórzenia bezpośredniego (jeśli > 1 fakt)
+        if (mathFacts.length > 1) {
+            while (next === pfwState.idx) next = Math.floor(Math.random() * mathFacts.length);
+        }
+        pfwState.idx = next;
+        renderCurrentFact();
+        // Manual next — zresetuj timer
+        if (!auto) {
+            if (pfwState.intervalId) clearInterval(pfwState.intervalId);
+            pfwState.intervalId = setInterval(() => nextFact(true), PFW_INTERVAL_MS);
+        }
+        startFactProgress();
+    }
+
+    function startFactProgress() {
+        const bar = document.getElementById('pfw-progress-bar');
+        if (!bar) return;
+        if (pfwState.progressId) clearInterval(pfwState.progressId);
+        let elapsed = 0;
+        bar.style.width = '0%';
+        const tickMs = 100;
+        pfwState.progressId = setInterval(() => {
+            elapsed += tickMs;
+            const pct = Math.min(100, (elapsed / PFW_INTERVAL_MS) * 100);
+            bar.style.width = pct + '%';
+            if (pct >= 100) clearInterval(pfwState.progressId);
+        }, tickMs);
     }
 
     function welcomeContinue() {
@@ -2168,10 +2235,15 @@
 
     function welcomeChange() {
         const banner = document.getElementById('welcome-back');
+        const top = document.getElementById('profile-top');
         if (banner) banner.style.display = 'none';
+        if (top) top.style.display = 'none';
         document.body.classList.remove('has-returning-user');
         const grid = document.querySelector('.profile-grid');
         if (grid) grid.style.display = '';
+        // Zatrzymaj rotację faktów — widget ukryty
+        if (pfwState.intervalId) { clearInterval(pfwState.intervalId); pfwState.intervalId = null; }
+        if (pfwState.progressId) { clearInterval(pfwState.progressId); pfwState.progressId = null; }
         // Scroll user to the form so they can change name/avatar
         const form = document.querySelector('.profile-form-card');
         if (form) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -3051,6 +3123,7 @@
                     }
                     case 'toggleNavMenu': toggleNavMenu(); break;
                     case 'closeNavMenu': closeNavMenu(); break;
+                    case 'nextFact': nextFact(false); break;
                 }
                 // Zamknij szufladę po kliknięciu przycisku nawigacyjnego wewnątrz niej
                 if (['showLeaderboard','showAccount','showHowto','showSettings'].includes(action)) {
