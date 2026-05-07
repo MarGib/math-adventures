@@ -46,20 +46,117 @@
             <div id="screen-profile" class="screen">
                 <button class="fullscreen-btn" type="button" aria-label="Pełny ekran" data-action="toggleFullScreen">⛶</button>
 
+                <!-- ======= TOP-RIGHT FLOATING NAV (desktop) ======= -->
+                <nav class="profile-topnav" aria-label="Nawigacja">
+                    <button class="ptn-btn" type="button" data-action="showLeaderboard" aria-label="Tablica wyników">
+                        <span class="ptn-icon">🏆</span>
+                        <span class="ptn-lbl">Ranking</span>
+                    </button>
+                    <button class="ptn-btn" type="button" data-action="showAccount" aria-label="Konto">
+                        <span class="ptn-icon">👤</span>
+                        <span class="ptn-lbl">Konto</span>
+                    </button>
+                    <button class="ptn-btn" type="button" data-action="showHowto" aria-label="Jak grać">
+                        <span class="ptn-icon">📖</span>
+                        <span class="ptn-lbl">Jak grać</span>
+                    </button>
+                    <button class="ptn-btn" type="button" data-action="showSettings" aria-label="Ustawienia">
+                        <span class="ptn-icon">⚙️</span>
+                        <span class="ptn-lbl">Opcje</span>
+                    </button>
+                </nav>
+
                 <div class="profile-main">
-                    <section class="panel-card welcome-back" id="welcome-back" style="display:none;">
-                        <div class="welcome-avatar" id="welcome-avatar" aria-hidden="true">🦉</div>
-                        <div class="welcome-text">
-                            <span class="welcome-kicker">Witaj ponownie!</span>
-                            <h2 id="welcome-name">Graczu</h2>
-                            <p id="welcome-meta">Ostatnia gra: dawno temu</p>
+
+                    <!-- ======= WELCOME HERO CARD (powracający gracz) ======= -->
+                    <section class="welcome-hero" id="welcome-back" style="display:none;">
+                        <div class="wh-left">
+                            <div class="wh-avatar-wrap">
+                                <div class="wh-avatar" id="welcome-avatar" aria-hidden="true">🦉</div>
+                                <div class="wh-avatar-ring"></div>
+                            </div>
                         </div>
-                        <div class="welcome-actions">
-                            <button class="btn-big" type="button" data-action="welcomeContinue">Zagraj ponownie ➜</button>
-                            <button class="link-btn" type="button" data-action="showEditProfile">✏️ Edytuj profil</button>
-                            <button class="link-btn" type="button" data-action="welcomeChange">↺ Inny gracz</button>
+                        <div class="wh-center">
+                            <span class="wh-kicker">WITAJ PONOWNIE!</span>
+                            <h2 class="wh-name" id="welcome-name">Graczu</h2>
+                            <p class="wh-meta" id="welcome-meta">Ostatnia gra: dawno temu</p>
+                            <div class="wh-stats-mini" id="wh-stats-mini">
+                                <div class="wh-stat">
+                                    <span class="wh-stat-val" id="stat-best">—</span>
+                                    <span class="wh-stat-lbl">Rekord</span>
+                                </div>
+                                <div class="wh-stat-divider"></div>
+                                <div class="wh-stat">
+                                    <span class="wh-stat-val" id="stat-games">—</span>
+                                    <span class="wh-stat-lbl">Gier</span>
+                                </div>
+                                <div class="wh-stat-divider"></div>
+                                <div class="wh-stat">
+                                    <span class="wh-stat-val" id="stat-avg">—</span>
+                                    <span class="wh-stat-lbl">Średni</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="wh-right">
+                            <button class="wh-play-btn" type="button" data-action="welcomeContinue">
+                                <span class="wh-play-icon">▶</span>
+                                <span class="wh-play-text">Zagraj <strong>teraz</strong></span>
+                            </button>
+                            <div class="wh-links">
+                                <button class="link-btn" type="button" data-action="showEditProfile">✏️ Profil</button>
+                                <button class="link-btn" type="button" data-action="welcomeChange">↺ Inny gracz</button>
+                            </div>
                         </div>
                     </section>
+
+                    <!-- ======= DASHBOARD (powracający gracz) ======= -->
+                    <div class="profile-dashboard" id="profile-dashboard" style="display:none;">
+
+                        <!-- Najlepsze wyniki / leaderboard mini -->
+                        <section class="panel-card pd-card pd-leaderboard">
+                            <div class="pd-card-head">
+                                <span class="pd-card-title"><span class="pd-card-icon">🏆</span>Najlepsze wyniki</span>
+                                <div class="pd-tabs">
+                                    <button type="button" class="pd-tab active" data-action="topListTab" data-arg="my">Moje</button>
+                                    <button type="button" class="pd-tab" data-action="topListTab" data-arg="global">🌐 Globalne</button>
+                                </div>
+                            </div>
+                            <ol class="pd-leaderboard-list" id="profile-top-list">
+                                <li class="top-empty">Zagraj pierwszą misję, aby zobaczyć wyniki!</li>
+                            </ol>
+                        </section>
+
+                        <!-- Ostatnia rozgrywka + ciekawostka matematyczna -->
+                        <section class="panel-card pd-card pd-side">
+                            <div class="pd-recent" id="pd-recent">
+                                <div class="pd-card-head">
+                                    <span class="pd-card-title"><span class="pd-card-icon">📊</span>Ostatnia rozgrywka</span>
+                                </div>
+                                <div class="pd-recent-grid">
+                                    <div class="pd-recent-stat">
+                                        <span class="pd-recent-val" id="recent-score">—</span>
+                                        <span class="pd-recent-lbl">Wynik</span>
+                                    </div>
+                                    <div class="pd-recent-stat">
+                                        <span class="pd-recent-val pd-recent-text" id="recent-mode">—</span>
+                                        <span class="pd-recent-lbl">Tryb</span>
+                                    </div>
+                                    <div class="pd-recent-stat">
+                                        <span class="pd-recent-val pd-recent-text" id="recent-diff">—</span>
+                                        <span class="pd-recent-lbl">Trudność</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pd-fact">
+                                <div class="pd-fact-icon">💡</div>
+                                <div class="pd-fact-content">
+                                    <span class="pd-fact-kicker">Wiesz że...</span>
+                                    <p id="pd-fact-text" class="pd-fact-text">Ładowanie ciekawostki...</p>
+                                </div>
+                            </div>
+                        </section>
+
+                    </div>
 
                     <section class="panel-card hero-panel">
                         <div class="hero-copy">
@@ -96,19 +193,7 @@
                                 <span class="helper-text">Krótko i czytelnie</span>
                             </div>
                             <input type="text" id="username" class="input-name" placeholder="Wpisz imię..." maxlength="10">
-
-                            <div class="quick-tops">
-                                <div class="quick-tops-head">
-                                    <span class="quick-tops-title">🏆 Najlepsze wyniki</span>
-                                    <span class="quick-tops-tabs">
-                                        <button type="button" class="qt-tab active" data-action="topListTab" data-arg="my">Moje</button>
-                                        <button type="button" class="qt-tab" data-action="topListTab" data-arg="global">🌐 Globalne</button>
-                                    </span>
-                                </div>
-                                <ol class="top-list" id="profile-top-list">
-                                    <li class="top-empty">Zagraj pierwszą misję, aby zobaczyć wyniki!</li>
-                                </ol>
-                            </div>
+                            <p class="form-helper-text">Wpisz swoje imię, wybierz awatara po prawej i kliknij <strong>Start misji</strong> żeby rozpocząć przygodę matematyczną.</p>
                         </section>
 
                         <section class="panel-card avatar-panel">
@@ -128,25 +213,37 @@
 
                 </div>
 
-                <div class="btn-container-bottom">
-                    <button class="btn-big" type="button" data-action="goToSetup">Start misji ➜</button>
-                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showLeaderboard">Tablica wyników</button>
-                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showAccount">👤 Konto</button>
-                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showHowto">📖 Jak grać</button>
-                    <button class="btn-big btn-secondary btn-nav-extra" type="button" data-action="showSettings">⚙️ Ustawienia</button>
-                    <button class="btn-hamburger btn-secondary" type="button" data-action="toggleNavMenu" aria-label="Menu nawigacyjne" aria-expanded="false">☰</button>
+                <!-- ===== START CTA dla nowych użytkowników (gdy welcome-hero ukryty) ===== -->
+                <div class="profile-start-cta" id="profile-start-cta">
+                    <button class="psc-btn" type="button" data-action="goToSetup">
+                        <span class="psc-icon">▶</span>
+                        <span class="psc-text">Start misji</span>
+                    </button>
                 </div>
 
-                <!-- Szuflada nawigacyjna — widoczna tylko na mobile po kliknięciu ☰ -->
-                <div class="nav-drawer" id="nav-drawer" aria-hidden="true">
-                    <div class="nav-drawer-backdrop" data-action="closeNavMenu"></div>
-                    <div class="nav-drawer-panel" role="menu">
-                        <button class="btn-big btn-secondary" type="button" data-action="showLeaderboard" role="menuitem">🏆 Tablica wyników</button>
-                        <button class="btn-big btn-secondary" type="button" data-action="showAccount" role="menuitem">👤 Konto</button>
-                        <button class="btn-big btn-secondary" type="button" data-action="showHowto" role="menuitem">📖 Jak grać</button>
-                        <button class="btn-big btn-secondary" type="button" data-action="showSettings" role="menuitem">⚙️ Ustawienia</button>
-                    </div>
-                </div>
+                <!-- ===== MOBILE TAB BAR ===== -->
+                <nav class="mobile-tab-bar" aria-label="Nawigacja główna">
+                    <button class="mtb-tab mtb-play" type="button" data-action="goToSetup">
+                        <span class="mtb-icon">▶</span>
+                        <span class="mtb-lbl">Graj</span>
+                    </button>
+                    <button class="mtb-tab" type="button" data-action="showLeaderboard">
+                        <span class="mtb-icon">🏆</span>
+                        <span class="mtb-lbl">Ranking</span>
+                    </button>
+                    <button class="mtb-tab" type="button" data-action="showAccount">
+                        <span class="mtb-icon">👤</span>
+                        <span class="mtb-lbl">Konto</span>
+                    </button>
+                    <button class="mtb-tab" type="button" data-action="showHowto">
+                        <span class="mtb-icon">📖</span>
+                        <span class="mtb-lbl">Jak grać</span>
+                    </button>
+                    <button class="mtb-tab" type="button" data-action="showSettings">
+                        <span class="mtb-icon">⚙️</span>
+                        <span class="mtb-lbl">Opcje</span>
+                    </button>
+                </nav>
             </div>
 
             <!-- ============== SETUP SCREEN ============== -->
