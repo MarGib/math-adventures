@@ -660,6 +660,187 @@ select {
 }
 
 /* ============================================================
+   PROFILE TOP ROW — welcome-hero (1.4fr) + fact widget (1fr)
+   ============================================================ */
+.profile-top {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: clamp(14px, 1.6vw, 20px);
+    align-items: stretch;
+    flex-shrink: 0;
+}
+
+/* W profile-top welcome-hero powinno wypełnić swoją kolumnę */
+.profile-top > .welcome-hero {
+    width: 100%;
+    min-width: 0;
+}
+
+/* ============================================================
+   FACT WIDGET — elegancki side widget z ciekawostkami matematycznymi
+   ============================================================ */
+.profile-fact-widget {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: clamp(20px, 2vw, 28px) clamp(20px, 2.2vw, 28px);
+    border-radius: var(--r-lg);
+    background: linear-gradient(135deg,
+        rgba(245, 158, 11, 0.14) 0%,
+        rgba(217, 119, 6, 0.10) 50%,
+        rgba(194, 65, 12, 0.08) 100%);
+    border: 1.5px solid rgba(245, 158, 11, 0.30);
+    box-shadow: 0 12px 36px rgba(245, 158, 11, 0.14), 0 2px 8px rgba(194, 65, 12, 0.06);
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+/* Decorative floating math symbols */
+.pfw-decoration {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    opacity: 0.10;
+}
+
+.pfw-decoration-symbol {
+    position: absolute;
+    font-family: var(--f-head);
+    font-weight: 800;
+    color: #C2410C;
+    user-select: none;
+    line-height: 1;
+}
+
+.pfw-d1 { top: 10%;  left:  8%; font-size: 38px; transform: rotate(-12deg); animation: pfwFloat 8s ease-in-out infinite; }
+.pfw-d2 { top: 60%;  left: 75%; font-size: 52px; transform: rotate(15deg);  animation: pfwFloat 10s ease-in-out infinite reverse; }
+.pfw-d3 { top: 70%;  left:  6%; font-size: 30px; transform: rotate(-8deg);  animation: pfwFloat 12s ease-in-out infinite; }
+.pfw-d4 { top:  8%;  left: 78%; font-size: 36px; transform: rotate(20deg);  animation: pfwFloat 9s ease-in-out infinite reverse; }
+
+@keyframes pfwFloat {
+    0%, 100% { transform: translate(0, 0) rotate(var(--rot, 0deg)); }
+    50%      { transform: translate(4px, -6px) rotate(var(--rot, 0deg)); }
+}
+
+.pfw-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    z-index: 1;
+}
+
+.pfw-icon {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+    animation: pfwGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes pfwGlow {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 0 rgba(245, 158, 11, 0)); }
+    50%      { transform: scale(1.1); filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.5)); }
+}
+
+.pfw-kicker {
+    flex: 1;
+    font-family: var(--f-head);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.6px;
+    font-size: 11px;
+    color: #C2410C;
+}
+
+.pfw-next-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: 1px solid rgba(194, 65, 12, 0.20);
+    background: rgba(255, 255, 255, 0.65);
+    color: #C2410C;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s var(--ease-spring), background 0.18s ease;
+    flex-shrink: 0;
+}
+
+.pfw-next-btn:hover {
+    background: white;
+    transform: rotate(180deg);
+}
+
+.pfw-next-btn:active {
+    transform: rotate(180deg) scale(0.92);
+}
+
+.pfw-text {
+    margin: 0;
+    flex: 1;
+    font-family: var(--f-display);
+    font-size: clamp(14px, 1.2vw, 16px);
+    line-height: 1.5;
+    color: var(--ink);
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+    animation: pfwTextIn 0.5s ease-out;
+}
+
+@keyframes pfwTextIn {
+    0%   { opacity: 0; transform: translateY(6px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+.pfw-progress {
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(194, 65, 12, 0.12);
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+}
+
+.pfw-progress-bar {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #F59E0B, #C2410C);
+    border-radius: 999px;
+    transition: width 0.1s linear;
+}
+
+/* Recent footer (motywacyjny element po usunięciu starego pd-fact) */
+.pd-recent-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.08), rgba(55, 48, 163, 0.05));
+    border: 1px solid rgba(15, 118, 110, 0.15);
+    border-radius: 12px;
+    margin-top: auto;
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--c-teal-dark);
+}
+
+.pd-recent-footer-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.pd-recent-footer-text {
+    flex: 1;
+}
+
+/* ============================================================
    PROFILE DASHBOARD — wypełnia pustą przestrzeń (dla returning user)
    ============================================================ */
 .profile-dashboard {
@@ -970,21 +1151,24 @@ select {
 /* ============================================================
    STAN WYŚWIETLANIA: returning user vs nowy gracz
    ============================================================ */
-/* Gdy mamy znanego gracza — pokaż dashboard, ukryj formularz/hero/start-cta */
+/* Gdy mamy znanego gracza — pokaż profile-top + dashboard, ukryj formularz/hero/start-cta */
 body.has-returning-user .hero-panel,
 body.has-returning-user .profile-grid,
 body.has-returning-user .profile-start-cta {
     display: none !important;
 }
 
+body.has-returning-user .profile-top {
+    display: grid !important;
+}
+
 body.has-returning-user .profile-dashboard {
     display: grid !important;
 }
 
-/* Dla nowego gracza — ukryj dashboard, pokaż wszystko inne */
-.profile-dashboard {
-    display: none;
-}
+/* Dla nowego gracza — ukryj profile-top + dashboard, pokaż wszystko inne */
+.profile-top { display: none; }
+.profile-dashboard { display: none; }
 
 /* ============================================================
    MOBILE TAB BAR — stała dolna nawigacja, widoczna tylko ≤760px
@@ -4195,113 +4379,133 @@ body.has-returning-user .profile-dashboard {
     .profile-topnav { display: none !important; }
     .mobile-tab-bar { display: flex !important; }
 
-    /* Dodaj odstęp na dole dla stałego tab bara */
+    /* Dodaj odstęp na dole dla floating tab bara (z marginesem) */
     .profile-main,
     .setup-main {
-        padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
-    /* Welcome hero — pionowy compact layout na mobile */
+    /* ========== WELCOME HERO MOBILE — pionowy stack (force) ========== */
     .welcome-hero {
-        grid-template-columns: 1fr;
-        gap: 14px;
-        padding: 18px 16px 16px;
-        text-align: center;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 14px !important;
+        padding: 20px 18px 18px !important;
+        text-align: center !important;
     }
 
     .wh-left {
-        display: flex;
-        justify-content: center;
+        display: flex !important;
+        justify-content: center !important;
+        margin: 0 auto;
     }
 
     .wh-avatar {
-        width: 64px;
-        height: 64px;
-        font-size: 36px;
-        border-radius: 16px;
+        width: 72px !important;
+        height: 72px !important;
+        font-size: 40px !important;
+        border-radius: 18px !important;
     }
 
     .wh-avatar-ring {
-        border-radius: 20px;
+        border-radius: 22px !important;
     }
 
     .wh-center {
-        text-align: center;
+        text-align: center !important;
+        width: 100%;
+    }
+
+    .wh-kicker {
+        font-size: 10px !important;
+        margin-bottom: 4px;
     }
 
     .wh-name {
-        font-size: 20px;
+        font-size: 22px !important;
+        margin-bottom: 4px;
     }
 
     .wh-meta {
-        font-size: 12px;
-        margin-bottom: 12px;
+        font-size: 12px !important;
+        margin: 0 0 14px !important;
     }
 
     .wh-stats-mini {
-        display: flex;
-        width: 100%;
-        justify-content: space-around;
-        padding: 10px 4px;
+        display: flex !important;
+        width: 100% !important;
+        justify-content: space-around !important;
+        padding: 12px 4px !important;
     }
 
     .wh-stat {
-        padding: 0 8px;
+        padding: 0 8px !important;
+        flex: 1;
     }
 
     .wh-stat-val {
-        font-size: 18px;
+        font-size: 20px !important;
     }
 
     .wh-stat-lbl {
-        font-size: 9px;
+        font-size: 9px !important;
     }
 
     .wh-right {
-        align-items: stretch;
-        gap: 8px;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+        width: 100%;
     }
 
     .wh-play-btn {
-        font-size: 16px;
-        padding: 14px 20px;
-        justify-content: center;
+        font-size: 17px !important;
+        padding: 16px 24px !important;
+        justify-content: center !important;
+        width: 100%;
     }
 
     .wh-links {
-        justify-content: center;
-        gap: 8px;
+        justify-content: center !important;
+        gap: 8px !important;
     }
 
-    /* Dashboard — single column on mobile */
+    /* ========== TOP ROW MOBILE — single column ========== */
+    body.has-returning-user .profile-top {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Fact widget na mobile — kompaktowy */
+    .profile-fact-widget {
+        padding: 16px 18px !important;
+        gap: 10px !important;
+    }
+    .pfw-text {
+        font-size: 13px !important;
+        line-height: 1.45;
+    }
+    .pfw-decoration-symbol {
+        font-size: 28px !important;
+    }
+    .pfw-d2 { font-size: 38px !important; }
+
+    /* ========== DASHBOARD MOBILE — single column ========== */
     body.has-returning-user .profile-dashboard {
         grid-template-columns: 1fr !important;
     }
 
-    .pd-card {
-        padding: 16px;
-    }
-
-    .pd-card-title {
-        font-size: 15px;
-    }
+    .pd-card { padding: 16px; }
+    .pd-card-title { font-size: 15px; }
 
     .pd-leaderboard-list li {
         padding: 8px 10px;
         gap: 8px;
     }
-
-    .pd-leaderboard-list .top-avatar {
-        font-size: 20px;
-    }
-
-    .pd-leaderboard-list .top-name {
-        font-size: 13px;
-    }
-
-    .pd-leaderboard-list .top-score {
-        font-size: 16px;
-    }
+    .pd-leaderboard-list .top-avatar { font-size: 20px; }
+    .pd-leaderboard-list .top-name { font-size: 13px; }
+    .pd-leaderboard-list .top-score { font-size: 16px; }
 
     /* Start CTA na mobile */
     .psc-btn {
@@ -4309,6 +4513,65 @@ body.has-returning-user .profile-dashboard {
         padding: 15px 36px;
         width: 100%;
         justify-content: center;
+    }
+
+    /* ========== FLOATING PILL TAB BAR — modern, oddalony od krawędzi ========== */
+    .mobile-tab-bar {
+        position: fixed !important;
+        bottom: max(14px, env(safe-area-inset-bottom, 14px)) !important;
+        left: 12px !important;
+        right: 12px !important;
+        border-radius: 24px !important;
+        padding: 6px !important;
+        background: rgba(255,255,255,0.92) !important;
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow:
+            0 18px 48px rgba(15, 23, 42, 0.18),
+            0 4px 12px rgba(15, 23, 42, 0.06) !important;
+        gap: 2px;
+    }
+
+    .mtb-tab {
+        padding: 10px 4px 8px !important;
+        border-radius: 18px !important;
+        min-height: 56px;
+        gap: 4px !important;
+    }
+
+    .mtb-tab:active {
+        background: rgba(15, 118, 110, 0.10);
+    }
+
+    .mtb-icon {
+        font-size: 22px !important;
+    }
+
+    .mtb-lbl {
+        font-size: 10px !important;
+    }
+
+    /* Play tab — most prominent (większy kolorowy kafelek) */
+    .mtb-play {
+        background: linear-gradient(135deg, var(--c-teal) 0%, var(--c-teal-dark) 100%);
+        box-shadow: 0 6px 18px rgba(15, 118, 110, 0.40);
+    }
+    .mtb-play::before {
+        display: none !important; /* nie potrzebujemy tła pod ikoną — całe tło zakładki jest kolorowe */
+    }
+    .mtb-play .mtb-icon {
+        color: white !important;
+        font-size: 22px !important;
+        margin-top: 0 !important;
+    }
+    .mtb-play .mtb-lbl {
+        color: white !important;
+        font-weight: 700 !important;
+    }
+    .mtb-play:active {
+        background: linear-gradient(135deg, var(--c-teal-dark) 0%, var(--c-teal) 100%);
+        transform: scale(0.97);
     }
 }
 
