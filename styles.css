@@ -367,9 +367,9 @@ select {
    PROFILE TOPNAV (desktop) — pływająca nawigacja w prawym górnym rogu
    ============================================================ */
 .profile-topnav {
-    position: absolute;
-    top: 14px;
-    right: 70px;
+    /* Flex item w screen-profile — nie absolute, by nie nakładać się na fact widget */
+    align-self: flex-end;
+    margin: 12px 70px 0 auto;
     z-index: 11;
     display: flex;
     gap: 6px;
@@ -381,6 +381,7 @@ select {
     border-radius: 14px;
     padding: 5px;
     box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+    flex-shrink: 0;
 }
 
 .ptn-btn {
