@@ -1590,9 +1590,10 @@ body.has-returning-user .profile-dashboard {
    ============================================================ */
 .profile-grid {
     display: grid;
-    grid-template-columns: minmax(260px, 0.85fr) 1.4fr;
+    /* Równe kolumny — spójność z dashboard po zalogowaniu */
+    grid-template-columns: 1fr 1fr;
     gap: clamp(14px, 1.6vw, 20px);
-    align-items: start;
+    align-items: stretch;
 }
 
 .profile-form-card,
@@ -1733,7 +1734,8 @@ body.has-returning-user .profile-dashboard {
     grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
     gap: 8px;
     width: 100%;
-    max-height: clamp(220px, 40vh, 380px);
+    /* Większy zakres widocznych awatarów — mniej scrollowania, lepsze użycie ekranu */
+    max-height: clamp(320px, 56vh, 560px);
     min-height: 0;
     overflow-y: auto;
     padding: 4px;
