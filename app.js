@@ -1828,6 +1828,36 @@
         if (elBest)  elBest.textContent  = best  !== null ? best  : '—';
         if (elGames) elGames.textContent = mine.length > 0 ? mine.length : '—';
         if (elAvg)   elAvg.textContent   = avg   !== null ? avg   : '—';
+
+        // Wypełnij dashboard: ostatnia rozgrywka + ciekawostka
+        renderDashboardRecent(mine);
+        renderDashboardFact();
+    }
+
+    function renderDashboardRecent(myScores) {
+        const elScore = document.getElementById('recent-score');
+        const elMode  = document.getElementById('recent-mode');
+        const elDiff  = document.getElementById('recent-diff');
+        if (!elScore) return;
+
+        if (!myScores || !myScores.length) {
+            elScore.textContent = '—';
+            elMode.textContent  = '—';
+            elDiff.textContent  = '—';
+            return;
+        }
+        // Ostatnia (najnowsza) gra — ostatni element listy localStorage
+        const last = myScores[myScores.length - 1];
+        elScore.textContent = last.s;
+        elMode.textContent  = getModeLabel(last.m) || '—';
+        elDiff.textContent  = getDiffName(last.diff) || '—';
+    }
+
+    function renderDashboardFact() {
+        const el = document.getElementById('pd-fact-text');
+        if (!el || !mathFacts || !mathFacts.length) return;
+        const idx = Math.floor(Math.random() * mathFacts.length);
+        el.textContent = mathFacts[idx];
     }
 
     function welcomeContinue() {
@@ -3115,7 +3145,7 @@
 
     function topListTab(mode) {
         profileTopMode = mode;
-        document.querySelectorAll('.qt-tab').forEach(t => {
+        document.querySelectorAll('.qt-tab, .pd-tab').forEach(t => {
             t.classList.toggle('active', t.dataset.arg === mode);
         });
         renderProfileTopList();
