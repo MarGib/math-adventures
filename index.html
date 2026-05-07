@@ -779,59 +779,172 @@
 
     <div id="modal-account" class="modal-overlay">
         <div class="modal-card">
-            <div class="modal-header">
+            <div class="modal-header" id="acc-modal-header">
                 <button class="modal-close" type="button" data-action="closeAccount" aria-label="Zamknij">×</button>
-                <h2>Konto</h2>
-                <p style="margin: 6px 0 0; color: rgba(255,255,255,0.85); font-weight: 600; font-size: 13px;">Trwałe konto = wyniki na każdym urządzeniu</p>
-                <div class="tab-bar">
-                    <button class="tab-btn active" type="button" data-action="accountTab" data-arg="signup" data-tab="signup">Stwórz konto</button>
-                    <button class="tab-btn" type="button" data-action="accountTab" data-arg="signin" data-tab="signin">Zaloguj się</button>
-                </div>
+                <h2 id="acc-modal-title">Konto</h2>
+                <p id="acc-modal-subtitle" style="margin: 6px 0 0; color: rgba(255,255,255,0.85); font-weight: 600; font-size: 13px;"></p>
             </div>
             <div class="modal-body">
-                <!-- TAB: SIGN UP -->
-                <div id="acc-tab-signup" class="acc-tab">
-                    <p class="acc-info" id="acc-signup-info">
-                        Zachowamy Twoje dotychczasowe wyniki i powiążemy je z trwałym kontem. Dzięki temu możesz grać na innych urządzeniach i rywalizować w globalnym rankingu.
-                    </p>
-                    <label class="acc-field">
-                        <span class="acc-label">Nazwa gracza</span>
-                        <input type="text" id="acc-signup-name" maxlength="20" autocomplete="username" placeholder="np. SpritnyLis42">
-                        <span class="acc-hint" id="acc-signup-name-hint">2–20 znaków, litery/cyfry/_-</span>
-                    </label>
-                    <label class="acc-field">
-                        <span class="acc-label">Hasło</span>
-                        <input type="password" id="acc-signup-pass" minlength="6" autocomplete="new-password" placeholder="min. 6 znaków">
-                        <span class="acc-hint">Zapamiętaj — w razie utraty będzie potrzebny e-mail</span>
-                    </label>
-                    <label class="acc-field">
-                        <span class="acc-label">E-mail (opcjonalnie)</span>
-                        <input type="email" id="acc-signup-email" autocomplete="email" placeholder="np. mama@example.com">
-                        <span class="acc-hint">Tylko do odzyskiwania hasła. Można dodać później.</span>
-                    </label>
-                    <div class="acc-actions">
-                        <button class="btn-big" type="button" data-action="accountSignUp">Stwórz konto</button>
-                        <button class="btn-big btn-secondary" type="button" data-action="accountSuggestName">🎲 Wylosuj nazwę</button>
+
+                <!-- ===== VIEW A: ONLINE z trwałym kontem ===== -->
+                <div class="acc-view acc-view-online" id="acc-view-online" style="display:none;">
+                    <div class="acc-online-card">
+                        <div class="acc-online-avatar" id="acc-online-avatar" aria-hidden="true">🦉</div>
+                        <div class="acc-online-info">
+                            <div class="acc-online-status">
+                                <span class="acc-online-dot"></span>
+                                <span>Zsynchronizowane</span>
+                            </div>
+                            <h3 class="acc-online-name" id="acc-online-name">—</h3>
+                            <p class="acc-online-desc">Wyniki dostępne na każdym urządzeniu na którym się zalogujesz</p>
+                        </div>
                     </div>
-                    <div id="acc-signup-status" class="acc-status"></div>
+
+                    <div class="acc-section-title">📋 Dane profilu</div>
+                    <div class="acc-profile-grid">
+                        <div class="acc-pi-row">
+                            <span class="acc-pi-icon" aria-hidden="true">🏫</span>
+                            <span class="acc-pi-lbl">Szkoła</span>
+                            <span class="acc-pi-val" id="acc-pi-school">—</span>
+                        </div>
+                        <div class="acc-pi-row">
+                            <span class="acc-pi-icon" aria-hidden="true">🎓</span>
+                            <span class="acc-pi-lbl">Klasa</span>
+                            <span class="acc-pi-val" id="acc-pi-class">—</span>
+                        </div>
+                        <div class="acc-pi-row">
+                            <span class="acc-pi-icon" aria-hidden="true">🏙️</span>
+                            <span class="acc-pi-lbl">Miasto</span>
+                            <span class="acc-pi-val" id="acc-pi-city">—</span>
+                        </div>
+                        <div class="acc-pi-row">
+                            <span class="acc-pi-icon" aria-hidden="true">📔</span>
+                            <span class="acc-pi-lbl">Nr w dzienniku</span>
+                            <span class="acc-pi-val" id="acc-pi-journal">—</span>
+                        </div>
+                    </div>
+                    <button class="btn-big btn-secondary acc-edit-profile-btn" type="button" data-action="showEditProfile">✏️ Edytuj profil</button>
+
+                    <!-- Logout zone -->
+                    <div class="acc-logout-zone">
+                        <div class="acc-section-title acc-section-danger">⚠️ Wylogowanie</div>
+                        <div class="acc-logout-buttons" id="acc-logout-buttons">
+                            <button class="acc-logout-btn" type="button" data-action="askLogoutLocal">
+                                <span class="acc-logout-icon">🚪</span>
+                                <span class="acc-logout-text">
+                                    <strong>Wyloguj na tym urządzeniu</strong>
+                                    <small>Inne urządzenia pozostaną zalogowane</small>
+                                </span>
+                            </button>
+                            <button class="acc-logout-btn acc-logout-global" type="button" data-action="askLogoutGlobal">
+                                <span class="acc-logout-icon">🌍</span>
+                                <span class="acc-logout-text">
+                                    <strong>Wyloguj wszędzie</strong>
+                                    <small>Zakończ wszystkie sesje (np. po zgubieniu telefonu)</small>
+                                </span>
+                            </button>
+                        </div>
+                        <div class="acc-logout-confirm" id="acc-logout-confirm" style="display:none;">
+                            <div class="acc-logout-confirm-msg" id="acc-logout-confirm-msg">Czy na pewno chcesz się wylogować?</div>
+                            <div class="acc-logout-confirm-actions">
+                                <button class="btn-big btn-danger" type="button" data-action="doLogoutConfirmed">Tak, wyloguj</button>
+                                <button class="btn-big btn-secondary" type="button" data-action="cancelLogout">Anuluj</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- TAB: SIGN IN -->
-                <div id="acc-tab-signin" class="acc-tab" style="display:none;">
-                    <p class="acc-info">Wpisz nazwę i hasło które ustawiłeś przy zakładaniu konta. Twoje wyniki zsynchronizują się automatycznie.</p>
-                    <label class="acc-field">
-                        <span class="acc-label">Nazwa gracza</span>
-                        <input type="text" id="acc-signin-name" autocomplete="username" placeholder="Twoja nazwa">
-                    </label>
-                    <label class="acc-field">
-                        <span class="acc-label">Hasło</span>
-                        <input type="password" id="acc-signin-pass" autocomplete="current-password" placeholder="Twoje hasło">
-                    </label>
-                    <div class="acc-actions">
-                        <button class="btn-big" type="button" data-action="accountSignIn">Zaloguj się</button>
+                <!-- ===== VIEW B: ANONIMOWO online ===== -->
+                <div class="acc-view acc-view-anon" id="acc-view-anon" style="display:none;">
+                    <div class="acc-anon-banner">
+                        <span class="acc-anon-dot"></span>
+                        <div class="acc-anon-banner-text">
+                            <h3>Grasz online, ale anonimowo</h3>
+                            <p>Twoje wyniki trafiają do globalnego rankingu z <strong>tego urządzenia i przeglądarki</strong>. Zmiana telefonu lub wyczyszczenie pamięci = utrata wyników.</p>
+                        </div>
                     </div>
-                    <div id="acc-signin-status" class="acc-status"></div>
+
+                    <div class="acc-benefits">
+                        <div class="acc-benefits-title">Po co konto?</div>
+                        <ul class="acc-benefits-list">
+                            <li><span class="acc-benefit-icon">🔄</span>Wyniki na każdym urządzeniu (telefon, tablet, komputer)</li>
+                            <li><span class="acc-benefit-icon">🎓</span>Profil ze szkołą i klasą — rywalizacja w klasie</li>
+                            <li><span class="acc-benefit-icon">🛡️</span>Bezpieczeństwo — wyniki zachowane przy zmianie urządzenia</li>
+                        </ul>
+                    </div>
+
+                    <div class="tab-bar">
+                        <button class="tab-btn active" type="button" data-action="accountTab" data-arg="signup" data-tab="signup">Stwórz konto</button>
+                        <button class="tab-btn" type="button" data-action="accountTab" data-arg="signin" data-tab="signin">Mam już konto</button>
+                    </div>
+
+                    <!-- TAB: SIGN UP -->
+                    <div id="acc-tab-signup" class="acc-tab">
+                        <p class="acc-info" id="acc-signup-info">Zachowamy Twoje dotychczasowe wyniki i powiążemy je z trwałym kontem.</p>
+                        <label class="acc-field">
+                            <span class="acc-label">Nazwa gracza</span>
+                            <input type="text" id="acc-signup-name" maxlength="20" autocomplete="username" placeholder="np. SpritnyLis42">
+                            <span class="acc-hint" id="acc-signup-name-hint">2–20 znaków, litery/cyfry/_-</span>
+                        </label>
+                        <label class="acc-field">
+                            <span class="acc-label">Hasło</span>
+                            <input type="password" id="acc-signup-pass" minlength="6" autocomplete="new-password" placeholder="min. 6 znaków">
+                            <span class="acc-hint">Zapamiętaj — w razie utraty będzie potrzebny e-mail</span>
+                        </label>
+                        <label class="acc-field">
+                            <span class="acc-label">E-mail (opcjonalnie)</span>
+                            <input type="email" id="acc-signup-email" autocomplete="email" placeholder="np. mama@example.com">
+                            <span class="acc-hint">Tylko do odzyskiwania hasła. Można dodać później.</span>
+                        </label>
+                        <div class="acc-actions">
+                            <button class="btn-big" type="button" data-action="accountSignUp">Stwórz konto</button>
+                            <button class="btn-big btn-secondary" type="button" data-action="accountSuggestName">🎲 Wylosuj nazwę</button>
+                        </div>
+                        <div id="acc-signup-status" class="acc-status"></div>
+                    </div>
+
+                    <!-- TAB: SIGN IN -->
+                    <div id="acc-tab-signin" class="acc-tab" style="display:none;">
+                        <p class="acc-info">Wpisz nazwę i hasło które ustawiłeś przy zakładaniu konta. Twoje wyniki zsynchronizują się automatycznie.</p>
+                        <label class="acc-field">
+                            <span class="acc-label">Nazwa gracza</span>
+                            <input type="text" id="acc-signin-name" autocomplete="username" placeholder="Twoja nazwa">
+                        </label>
+                        <label class="acc-field">
+                            <span class="acc-label">Hasło</span>
+                            <input type="password" id="acc-signin-pass" autocomplete="current-password" placeholder="Twoje hasło">
+                        </label>
+                        <div class="acc-actions">
+                            <button class="btn-big" type="button" data-action="accountSignIn">Zaloguj się</button>
+                        </div>
+                        <div id="acc-signin-status" class="acc-status"></div>
+                    </div>
                 </div>
+
+                <!-- ===== VIEW C: TYLKO LOKALNIE (offline) ===== -->
+                <div class="acc-view acc-view-local" id="acc-view-local" style="display:none;">
+                    <div class="acc-local-banner">
+                        <span class="acc-local-icon">📴</span>
+                        <div class="acc-local-banner-text">
+                            <h3>Tryb lokalny</h3>
+                            <p>Brak połączenia z chmurą. Wyniki zapisywane są tylko w tej przeglądarce na tym urządzeniu.</p>
+                        </div>
+                    </div>
+
+                    <div class="acc-info-card">
+                        <div class="acc-info-card-title">Co to znaczy?</div>
+                        <ul class="acc-info-list">
+                            <li><span class="acc-info-icon">📊</span>Wyniki widoczne tylko w „Najlepsze wyniki / Moje"</li>
+                            <li><span class="acc-info-icon">🌐</span>Brak udziału w globalnym rankingu</li>
+                            <li><span class="acc-info-icon">⚠️</span>Wyczyszczenie pamięci przeglądarki = utrata wyników</li>
+                        </ul>
+                    </div>
+
+                    <button class="btn-big" type="button" data-action="reloadPage">↻ Odśwież połączenie</button>
+                </div>
+
+                <!-- Toast — pojawia się po akcjach (np. wylogowanie) -->
+                <div class="acc-toast" id="acc-toast" style="display:none;"></div>
             </div>
             <div class="modal-footer">
                 <div class="modal-btn-row">

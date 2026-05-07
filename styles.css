@@ -3986,7 +3986,424 @@ body.has-returning-user .profile-dashboard {
 .acc-status.is-bad  { background: rgba(220, 38, 38, 0.10); color: var(--bad-dark); }
 .acc-status.is-info { background: rgba(15, 118, 110, 0.08); color: var(--c-teal-dark); }
 
-/* Zalogowany — info + akcje wylogowania */
+/* ============================================================
+   ACCOUNT MODAL — 3 widoki (online / anon / local)
+   ============================================================ */
+.acc-view {
+    flex-direction: column;
+    gap: 16px;
+}
+
+.acc-section-title {
+    font-family: var(--f-head);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin: 6px 0 -4px;
+}
+
+.acc-section-danger {
+    color: var(--bad-dark);
+}
+
+/* ===== VIEW: ONLINE (z trwałym kontem) ===== */
+.acc-online-card {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 18px 18px 18px 16px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.10), rgba(15, 118, 110, 0.08));
+    border: 1.5px solid rgba(16, 185, 129, 0.30);
+    border-radius: 16px;
+}
+
+.acc-online-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--c-teal), var(--c-indigo));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    box-shadow: 0 8px 18px rgba(16, 185, 129, 0.25);
+    flex-shrink: 0;
+}
+
+.acc-online-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.acc-online-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--f-head);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 10px;
+    color: #047857;
+    margin-bottom: 4px;
+}
+
+.acc-online-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10B981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+    animation: dotPulse 2s ease-in-out infinite;
+}
+
+.acc-online-name {
+    font-family: var(--f-head);
+    font-weight: 800;
+    font-size: 22px;
+    margin: 0 0 2px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+}
+
+.acc-online-desc {
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.acc-profile-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.acc-pi-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-width: 0;
+}
+
+.acc-pi-icon {
+    font-size: 18px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.acc-pi-lbl {
+    font-size: 11px;
+    color: var(--ink-faint);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.acc-pi-val {
+    flex: 1;
+    text-align: right;
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.acc-pi-val.is-empty {
+    color: var(--ink-faint);
+    font-weight: 500;
+    font-style: italic;
+}
+
+.acc-edit-profile-btn {
+    align-self: stretch;
+}
+
+/* Logout zone */
+.acc-logout-zone {
+    margin-top: 8px;
+    padding-top: 16px;
+    border-top: 1px dashed rgba(15, 23, 42, 0.10);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.acc-logout-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.acc-logout-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1.5px solid rgba(220, 38, 38, 0.20);
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    font-family: var(--f-display);
+    color: var(--ink);
+    width: 100%;
+}
+
+.acc-logout-btn:hover {
+    background: rgba(220, 38, 38, 0.04);
+    border-color: rgba(220, 38, 38, 0.40);
+    transform: translateY(-1px);
+}
+
+.acc-logout-icon {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.acc-logout-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.acc-logout-text strong {
+    font-weight: 700;
+    color: var(--bad-dark);
+    font-size: 14px;
+}
+
+.acc-logout-text small {
+    color: var(--ink-muted);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.acc-logout-confirm {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    background: rgba(220, 38, 38, 0.06);
+    border: 1.5px solid rgba(220, 38, 38, 0.30);
+    border-radius: 12px;
+}
+
+.acc-logout-confirm-msg {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.acc-logout-confirm-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.acc-logout-confirm-actions .btn-big {
+    flex: 1;
+    padding: 12px 16px;
+    font-size: 14px;
+}
+
+/* ===== VIEW: ANON (anonimowo online) ===== */
+.acc-anon-banner {
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.10), rgba(217, 119, 6, 0.06));
+    border: 1.5px solid rgba(245, 158, 11, 0.30);
+    border-radius: 14px;
+    align-items: flex-start;
+}
+
+.acc-anon-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #F59E0B;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+    flex-shrink: 0;
+    margin-top: 5px;
+    animation: dotPulse 2.4s ease-in-out infinite;
+}
+
+.acc-anon-banner-text h3 {
+    margin: 0 0 4px;
+    font-family: var(--f-head);
+    font-weight: 700;
+    font-size: 16px;
+    color: #B45309;
+}
+
+.acc-anon-banner-text p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-muted);
+}
+
+.acc-benefits {
+    padding: 14px 16px;
+    background: rgba(15, 118, 110, 0.04);
+    border: 1px solid rgba(15, 118, 110, 0.15);
+    border-radius: 12px;
+}
+
+.acc-benefits-title {
+    font-family: var(--f-head);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--c-teal-dark);
+    margin-bottom: 8px;
+}
+
+.acc-benefits-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.acc-benefits-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ink);
+    font-weight: 500;
+}
+
+.acc-benefit-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+/* ===== VIEW: LOCAL (offline) ===== */
+.acc-local-banner {
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(148, 163, 184, 0.10), rgba(100, 116, 139, 0.06));
+    border: 1.5px solid rgba(148, 163, 184, 0.30);
+    border-radius: 14px;
+    align-items: flex-start;
+}
+
+.acc-local-icon {
+    font-size: 28px;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.acc-local-banner-text h3 {
+    margin: 0 0 4px;
+    font-family: var(--f-head);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--ink);
+}
+
+.acc-local-banner-text p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink-muted);
+}
+
+.acc-info-card {
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+.acc-info-card-title {
+    font-family: var(--f-head);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink);
+    margin-bottom: 8px;
+}
+
+.acc-info-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.acc-info-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ink-muted);
+    font-weight: 500;
+}
+
+.acc-info-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+/* ===== TOAST — komunikat po akcji wewnątrz modalu ===== */
+.acc-toast {
+    margin-top: 8px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 13px;
+    text-align: center;
+    background: rgba(15, 23, 42, 0.06);
+    color: var(--ink);
+    animation: accToastIn 0.3s ease-out;
+}
+
+.acc-toast.is-good {
+    background: rgba(5, 150, 105, 0.10);
+    color: var(--good-dark);
+    border: 1px solid rgba(5, 150, 105, 0.25);
+}
+
+.acc-toast.is-bad {
+    background: rgba(220, 38, 38, 0.10);
+    color: var(--bad-dark);
+    border: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+@keyframes accToastIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile — uproszczenia */
+@media (max-width: 520px) {
+    .acc-profile-grid { grid-template-columns: 1fr; }
+    .acc-online-card { padding: 14px; gap: 12px; }
+    .acc-online-avatar { width: 52px; height: 52px; font-size: 30px; border-radius: 12px; }
+    .acc-online-name { font-size: 18px; }
+    .acc-logout-confirm-actions { flex-direction: column; }
+}
+
+/* ============================================================
+   LEGACY — stary acc-logged-in (zachowane dla kompatybilności)
+   ============================================================ */
 .acc-logged-in {
     display: flex;
     flex-direction: column;

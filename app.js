@@ -1253,40 +1253,142 @@
             if (el) { el.textContent = ''; el.className = 'acc-status'; }
         });
 
-        // Jezeli juz zalogowany trwale — pokaz info + przyciski Wyloguj
-        const signupInfo = document.getElementById('acc-signup-info');
-        if (cloudUser && cloudUser._persistent && cloudUser.profile && signupInfo) {
-            const username = escapeHtml(cloudUser.profile.username);
-            signupInfo.innerHTML = `
-                <div class="acc-logged-in">
-                    <div class="acc-logged-head">✓ Zalogowany jako <strong>${username}</strong></div>
-                    <p class="acc-logged-desc">Wyniki synchronizują się z chmurą. Możesz grać na wielu urządzeniach jednocześnie — telefon, tablet, komputer.</p>
-                    <div class="acc-logged-actions">
-                        <button class="btn-big btn-secondary acc-logout-local" type="button">Wyloguj na tym urządzeniu</button>
-                        <button class="acc-logout-global" type="button" title="Bezpieczne wylogowanie ze wszystkich urządzeń (np. po zgubieniu telefonu)">Wyloguj wszędzie</button>
-                    </div>
-                </div>
-            `;
-            // Podepnij handlery
-            const localBtn = signupInfo.querySelector('.acc-logout-local');
-            const globalBtn = signupInfo.querySelector('.acc-logout-global');
-            if (localBtn) localBtn.addEventListener('click', accountSignOut);
-            if (globalBtn) globalBtn.addEventListener('click', accountSignOutEverywhere);
-        } else if (signupInfo && cloudReady) {
-            signupInfo.innerHTML = 'Zachowamy Twoje dotychczasowe wyniki i powiążemy je z trwałym kontem. Dzięki temu możesz grać na innych urządzeniach i rywalizować w globalnym rankingu.';
-        } else if (signupInfo) {
-            signupInfo.innerHTML = '⚠️ Brak połączenia z chmurą — funkcja kont chwilowo niedostępna.';
-        }
-
-        // Prefill nazwy z formularza profilu
+        // Prefill nazwy z formularza profilu (dla anon view signup form)
         const nameInput = document.getElementById('acc-signup-name');
         const profileInput = document.getElementById('username');
         if (nameInput && profileInput && profileInput.value) {
             nameInput.value = profileInput.value;
         }
 
-        accountTab('signup');
+        renderAccountModal();
         modal.style.display = 'flex';
+    }
+
+    /* Reactive — przełącza widok modalu zależnie od stanu konta:
+       online (zalogowany trwale) | anon (cloud bez konta) | local (offline). */
+    function renderAccountModal() {
+        const modal = document.getElementById('modal-account');
+        if (!modal || modal.style.display === 'none') return;
+
+        const titleEl = document.getElementById('acc-modal-title');
+        const subtitleEl = document.getElementById('acc-modal-subtitle');
+        const views = ['online', 'anon', 'local'];
+
+        let activeView, title, subtitle;
+        if (cloudReady && cloudUser && cloudUser._persistent && cloudUser.profile) {
+            activeView = 'online';
+            title = 'Twoje konto';
+            subtitle = `Zalogowany jako ${cloudUser.profile.username}`;
+        } else if (cloudReady) {
+            activeView = 'anon';
+            title = 'Konto';
+            subtitle = 'Zaloguj się aby synchronizować wyniki między urządzeniami';
+        } else {
+            activeView = 'local';
+            title = 'Tryb lokalny';
+            subtitle = 'Brak połączenia z chmurą';
+        }
+
+        if (titleEl) titleEl.textContent = title;
+        if (subtitleEl) subtitleEl.textContent = subtitle;
+
+        views.forEach(v => {
+            const el = document.getElementById('acc-view-' + v);
+            if (el) el.style.display = (v === activeView ? 'flex' : 'none');
+        });
+
+        // Zresetuj logout confirmation jeśli przełączamy widoki
+        const confirmBox = document.getElementById('acc-logout-confirm');
+        const buttons = document.getElementById('acc-logout-buttons');
+        if (confirmBox) confirmBox.style.display = 'none';
+        if (buttons) buttons.style.display = 'flex';
+
+        if (activeView === 'online') populateAccountOnlineView();
+        if (activeView === 'anon') accountTab('signup');
+    }
+
+    function populateAccountOnlineView() {
+        const profile = cloudUser && cloudUser.profile;
+        if (!profile) return;
+        const set = (id, val, def) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const has = !!(val && String(val).trim());
+            el.textContent = has ? val : (def || 'Nie ustawiono');
+            el.classList.toggle('is-empty', !has);
+        };
+        const av = document.getElementById('acc-online-avatar');
+        if (av) av.textContent = profile.avatar || '🦉';
+        const name = document.getElementById('acc-online-name');
+        if (name) name.textContent = profile.username || '—';
+        set('acc-pi-school', profile.school);
+        set('acc-pi-class', profile.class_name);
+        set('acc-pi-city', profile.city);
+        set('acc-pi-journal', profile.journal_no);
+    }
+
+    /* ===== Logout flow — inline confirmation, reaktywne ===== */
+    let pendingLogoutScope = null; // 'local' | 'global'
+
+    function askLogoutLocal() { showLogoutConfirm('local'); }
+    function askLogoutGlobal() { showLogoutConfirm('global'); }
+
+    function showLogoutConfirm(scope) {
+        pendingLogoutScope = scope;
+        const buttons = document.getElementById('acc-logout-buttons');
+        const confirmBox = document.getElementById('acc-logout-confirm');
+        const msg = document.getElementById('acc-logout-confirm-msg');
+        if (buttons) buttons.style.display = 'none';
+        if (confirmBox) confirmBox.style.display = 'flex';
+        if (msg) {
+            msg.textContent = scope === 'global'
+                ? '🌍 Wyloguj ze wszystkich urządzeń? Każde urządzenie będzie musiało zalogować się na nowo.'
+                : '🚪 Wylogować z tego urządzenia? Inne urządzenia (telefon, komputer, tablet) pozostaną zalogowane.';
+        }
+    }
+
+    function cancelLogout() {
+        pendingLogoutScope = null;
+        const buttons = document.getElementById('acc-logout-buttons');
+        const confirmBox = document.getElementById('acc-logout-confirm');
+        if (buttons) buttons.style.display = 'flex';
+        if (confirmBox) confirmBox.style.display = 'none';
+    }
+
+    async function doLogoutConfirmed() {
+        const scope = pendingLogoutScope;
+        pendingLogoutScope = null;
+        try {
+            if (scope === 'global') {
+                await cloudSignOutEverywhere();
+                showAccToast('✓ Wylogowano ze wszystkich urządzeń', 'good');
+            } else {
+                await cloudSignOut();
+                showAccToast('✓ Wylogowano z tego urządzenia', 'good');
+            }
+            updateCloudStatusPill();
+            renderWelcomeBack();
+            renderAccountModal();  // KLUCZOWE: rerender modalu — widok zmieni się na anon
+        } catch (e) {
+            showAccToast('⚠ Nie udało się wylogować: ' + (e.message || ''), 'bad');
+            cancelLogout();
+        }
+    }
+
+    function showAccToast(text, kind) {
+        const toast = document.getElementById('acc-toast');
+        if (!toast) return;
+        toast.textContent = text;
+        toast.className = 'acc-toast' + (kind ? ' is-' + kind : '');
+        toast.style.display = 'block';
+        clearTimeout(showAccToast._t);
+        showAccToast._t = setTimeout(() => {
+            toast.style.display = 'none';
+        }, 3500);
+    }
+
+    function reloadPage() {
+        window.location.reload();
     }
 
     function closeAccount() {
@@ -1350,7 +1452,11 @@
             renderWelcomeBack();
             updateCloudStatusPill();
             setAccStatus('acc-signup-status', `✓ Konto utworzone! Witaj, ${name}.`, 'good');
-            setTimeout(() => closeAccount(), 1500);
+            // Przełącz modal na online view zamiast zamykać — user widzi że jest zalogowany
+            setTimeout(() => {
+                renderAccountModal();
+                showAccToast(`✓ Konto utworzone — zalogowano jako ${name}`, 'good');
+            }, 800);
         } catch (e) {
             console.error('[signup] failed:', e);
             setAccStatus('acc-signup-status', '⚠ ' + (e.message || 'Nie udało się stworzyć konta'), 'bad');
@@ -1381,7 +1487,11 @@
             renderProfileTopList();
             updateCloudStatusPill();
             setAccStatus('acc-signin-status', `✓ Witaj z powrotem, ${user.name}!`, 'good');
-            setTimeout(() => closeAccount(), 1500);
+            // Po krótkim sukcesie — przełącz modal na online view (zamiast zamykać)
+            setTimeout(() => {
+                renderAccountModal();
+                showAccToast(`✓ Zalogowano jako ${user.name}`, 'good');
+            }, 800);
         } catch (e) {
             setAccStatus('acc-signin-status', '⚠ ' + (e.message || 'Logowanie nieudane'), 'bad');
         }
@@ -3128,6 +3238,11 @@
                     case 'accountSignUp': accountSignUp(); break;
                     case 'accountSignIn': accountSignIn(); break;
                     case 'accountSignOut': accountSignOut(); break;
+                    case 'askLogoutLocal': askLogoutLocal(); break;
+                    case 'askLogoutGlobal': askLogoutGlobal(); break;
+                    case 'doLogoutConfirmed': doLogoutConfirmed(); break;
+                    case 'cancelLogout': cancelLogout(); break;
+                    case 'reloadPage': reloadPage(); break;
                     case 'accountSuggestName': accountSuggestName(); break;
                     case 'showEditProfile': showEditProfile(); break;
                     case 'closeEditProfile': closeEditProfile(); break;
