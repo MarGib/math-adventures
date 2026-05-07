@@ -1358,20 +1358,38 @@
     async function doLogoutConfirmed() {
         const scope = pendingLogoutScope;
         pendingLogoutScope = null;
+
+        // Loading state na przycisku
+        const btn = document.querySelector('[data-action="doLogoutConfirmed"]');
+        const cancelBtn = document.querySelector('[data-action="cancelLogout"]');
+        const origText = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Wylogowuję...'; }
+        if (cancelBtn) cancelBtn.disabled = true;
+
+        // Safety timeout — jeśli cloudSignOut zawiesi się dłużej niż 6s,
+        // wymuszamy reload (lokalny stan i tak się odświeży)
+        const timeoutId = setTimeout(() => {
+            try { closeAccount(); } catch (_) {}
+            location.reload();
+        }, 6000);
+
         try {
             if (scope === 'global') {
                 await cloudSignOutEverywhere();
-                showAccToast('✓ Wylogowano ze wszystkich urządzeń', 'good');
             } else {
                 await cloudSignOut();
-                showAccToast('✓ Wylogowano z tego urządzenia', 'good');
             }
-            updateCloudStatusPill();
-            renderWelcomeBack();
-            renderAccountModal();  // KLUCZOWE: rerender modalu — widok zmieni się na anon
+            clearTimeout(timeoutId);
+            // Zamknij modal i odśwież stronę — gwarantuje czysty stan UI
+            closeAccount();
+            setTimeout(() => location.reload(), 200);
         } catch (e) {
+            clearTimeout(timeoutId);
+            console.error('[logout] failed:', e);
             showAccToast('⚠ Nie udało się wylogować: ' + (e.message || ''), 'bad');
             cancelLogout();
+            if (btn) { btn.disabled = false; btn.textContent = origText; }
+            if (cancelBtn) cancelBtn.disabled = false;
         }
     }
 
