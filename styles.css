@@ -4559,12 +4559,9 @@ body.has-returning-user .profile-dashboard {
     .pd-leaderboard-list .top-name { font-size: 13px; }
     .pd-leaderboard-list .top-score { font-size: 16px; }
 
-    /* Start CTA na mobile */
-    .psc-btn {
-        font-size: 17px;
-        padding: 15px 36px;
-        width: 100%;
-        justify-content: center;
+    /* Start CTA — ukryty na mobile, jego rolę pełni "Graj" w tab barze */
+    .profile-start-cta {
+        display: none !important;
     }
 
     /* ========== FLOATING PILL TAB BAR — modern, oddalony od krawędzi ========== */
