@@ -548,11 +548,133 @@ select {
     border: 2px solid rgba(15, 118, 110, 0.32);
     animation: ringPulse 3s ease-in-out infinite;
     pointer-events: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 @keyframes ringPulse {
     0%, 100% { transform: scale(1); opacity: 0.55; }
     50% { transform: scale(1.08); opacity: 1; }
+}
+
+/* ===== STAN POŁĄCZENIA — 3 stany ringa wokół awatara ===== */
+
+/* OFFLINE / lokalnie — szary, subtelnie pulsujący */
+body.is-mode-local .wh-avatar-ring {
+    border-color: rgba(148, 163, 184, 0.45);
+    box-shadow: 0 0 0 0 rgba(148, 163, 184, 0);
+}
+
+/* ANONYMOUS online — bursztynowy, lekka aura */
+body.is-mode-anon .wh-avatar-ring {
+    border-color: rgba(245, 158, 11, 0.55);
+    box-shadow: 0 0 16px 2px rgba(245, 158, 11, 0.20);
+    animation: ringPulseAnon 2.4s ease-in-out infinite;
+}
+
+@keyframes ringPulseAnon {
+    0%, 100% { transform: scale(1);    opacity: 0.65; box-shadow: 0 0 14px 1px rgba(245, 158, 11, 0.18); }
+    50%      { transform: scale(1.08); opacity: 1;    box-shadow: 0 0 20px 4px rgba(245, 158, 11, 0.32); }
+}
+
+/* PERSISTENT online — zielona aura z "świeceniem" jak status online */
+body.is-mode-online .wh-avatar-ring {
+    border-color: rgba(16, 185, 129, 0.70);
+    box-shadow: 0 0 22px 3px rgba(16, 185, 129, 0.35);
+    animation: ringPulseOnline 2s ease-in-out infinite;
+}
+
+@keyframes ringPulseOnline {
+    0%, 100% { transform: scale(1);    opacity: 0.85; box-shadow: 0 0 18px 2px rgba(16, 185, 129, 0.30); }
+    50%      { transform: scale(1.10); opacity: 1;    box-shadow: 0 0 28px 6px rgba(16, 185, 129, 0.50); }
+}
+
+/* ===== MODE PILL — klikalny wskaźnik trybu gry pod imieniem ===== */
+.wh-mode-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 14px;
+    padding: 6px 12px 6px 10px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    border-radius: 999px;
+    cursor: pointer;
+    font-family: var(--f-display);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.wh-mode-pill:hover {
+    background: rgba(255, 255, 255, 0.85);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.10);
+}
+
+.wh-mode-pill:active {
+    transform: scale(0.97);
+}
+
+/* Kropka wewnątrz pilla — zsynchronizowana ze stanem ringa */
+.wh-mode-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #94a3b8; /* domyślnie szary */
+    flex-shrink: 0;
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.wh-mode-text {
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.1px;
+}
+
+.wh-mode-action {
+    color: var(--c-teal-dark);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    padding-left: 4px;
+    border-left: 1px solid rgba(15, 23, 42, 0.10);
+    margin-left: 2px;
+}
+
+/* Pill — stany */
+body.is-mode-local .wh-mode-pill {
+    border-color: rgba(148, 163, 184, 0.30);
+}
+body.is-mode-local .wh-mode-dot {
+    background: #94a3b8;
+}
+
+body.is-mode-anon .wh-mode-pill {
+    border-color: rgba(245, 158, 11, 0.35);
+    background: rgba(254, 243, 199, 0.55);
+}
+body.is-mode-anon .wh-mode-dot {
+    background: #F59E0B;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.55);
+}
+
+body.is-mode-online .wh-mode-pill {
+    border-color: rgba(16, 185, 129, 0.40);
+    background: rgba(209, 250, 229, 0.55);
+}
+body.is-mode-online .wh-mode-dot {
+    background: #10B981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.65);
+    animation: dotPulse 2s ease-in-out infinite;
+}
+
+@keyframes dotPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
+    50%      { box-shadow: 0 0 0 5px rgba(16, 185, 129, 0); }
 }
 
 /* CENTER: Identity + stats */

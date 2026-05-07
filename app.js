@@ -577,6 +577,8 @@
     function updateCloudStatusPill() {
         const pill = document.getElementById('cloud-status-pill');
         const label = document.getElementById('cloud-status-label');
+        // Aktualizuj też welcome-hero mode pill
+        updateConnectionMode();
         if (!pill || !label) return;
         pill.classList.remove('is-online', 'is-offline', 'is-error');
         if (!cloudReady) {
@@ -595,6 +597,37 @@
         pill.classList.add('is-online');
         label.textContent = '🌐 anonimowo';
         pill.title = 'Zarejestruj konto aby grać na innych urządzeniach';
+    }
+
+    /* Aktualizuje wizualny wskaźnik trybu w welcome-hero (ring + pill).
+       3 stany: online (persistent), anon (cloud bez konta), local (offline). */
+    function updateConnectionMode() {
+        const body = document.body;
+        body.classList.remove('is-mode-online', 'is-mode-anon', 'is-mode-local');
+
+        const text = document.getElementById('wh-mode-text');
+        const action = document.getElementById('wh-mode-action');
+        const pill = document.getElementById('wh-mode-pill');
+
+        if (!cloudReady) {
+            body.classList.add('is-mode-local');
+            if (text) text.textContent = 'Tryb lokalny';
+            if (action) action.textContent = 'Połącz ›';
+            if (pill) pill.title = 'Wyniki zapisywane tylko na tym urządzeniu. Kliknij aby się zalogować i synchronizować.';
+            return;
+        }
+        if (cloudUser && cloudUser._persistent && cloudUser.profile) {
+            body.classList.add('is-mode-online');
+            if (text) text.textContent = `Online · ${cloudUser.profile.username}`;
+            if (action) action.textContent = 'Konto ›';
+            if (pill) pill.title = 'Zalogowany — wyniki synchronizują się między urządzeniami. Kliknij aby zarządzać kontem.';
+            return;
+        }
+        // Anonymous — w chmurze ale bez konta
+        body.classList.add('is-mode-anon');
+        if (text) text.textContent = 'Anonimowo online';
+        if (action) action.textContent = 'Zaloguj ›';
+        if (pill) pill.title = 'Wyniki w globalnym rankingu, ale bez synchronizacji między urządzeniami. Zaloguj się aby zsynchronizować.';
     }
 
     const confettiColors = ["#0F766E", "#3730A3", "#D97706", "#0EA5E9", "#10B981", "#F59E0B"];
