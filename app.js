@@ -211,8 +211,8 @@
     }
 
     /** Generator losowej nazwy. Łączy przymiotnik + rzeczownik + opcjonalnie cyfra. */
-    const namePartAdj = ['Sprytny','Mądry','Szybki','Dzielny','Bystry','Czujny','Silny','Wesoły','Dziarski','Odważny','Zwinny','Cierpliwy','Pewny','Czujny','Pilny','Lotny','Sprawny','Niezłomny','Rączy','Jasny'];
-    const namePartNoun = ['Sowa','Lis','Tygrys','Smok','Panda','Jeleń','Ryś','Wilk','Wieloryb','Sokol','Kot','Pies','Konik','Niedźwiedź','Geniusz','Bohater','Wojownik','Mędrzec','Profesor','Mistrz'];
+    const namePartAdj = ['Sprytny','Madry','Szybki','Dzielny','Bystry','Czujny','Silny','Wesoly','Dziarski','Odwazny','Zwinny','Cierpliwy','Pewny','Pilny','Lotny','Sprawny','Niezlomny','Raczy','Jasny','Smialy'];
+    const namePartNoun = ['Sowa','Lis','Tygrys','Smok','Panda','Jelen','Rys','Wilk','Wieloryb','Sokol','Kot','Pies','Konik','Niedzwiedz','Geniusz','Bohater','Wojownik','Medrzec','Profesor','Mistrz'];
 
     function generateRandomName() {
         const adj = namePartAdj[Math.floor(Math.random() * namePartAdj.length)];
@@ -1461,9 +1461,15 @@
         }
 
         try {
-            await cloudSignUp(name, pass, email, (text) => {
-                setAccStatus('acc-signup-status', '⏳ ' + text, 'info');
-            });
+            const signUpTimeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Przekroczono czas oczekiwania. Sprawdź połączenie i spróbuj ponownie.')), 12000)
+            );
+            await Promise.race([
+                cloudSignUp(name, pass, email, (text) => {
+                    setAccStatus('acc-signup-status', '⏳ ' + text, 'info');
+                }),
+                signUpTimeout
+            ]);
             user.name = name;
             const profileInput = document.getElementById('username');
             if (profileInput) profileInput.value = name;
@@ -1492,9 +1498,15 @@
         }
 
         try {
-            await cloudSignIn(name, pass, (text) => {
-                setAccStatus('acc-signin-status', '⏳ ' + text, 'info');
-            });
+            const signInTimeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Przekroczono czas oczekiwania. Sprawdź połączenie i spróbuj ponownie.')), 12000)
+            );
+            await Promise.race([
+                cloudSignIn(name, pass, (text) => {
+                    setAccStatus('acc-signin-status', '⏳ ' + text, 'info');
+                }),
+                signInTimeout
+            ]);
             // Zaktualizuj formularz profilu
             const profileInput = document.getElementById('username');
             if (profileInput) profileInput.value = user.name;
