@@ -367,8 +367,10 @@ select {
    PROFILE TOPNAV (desktop) — pływająca nawigacja w prawym górnym rogu
    ============================================================ */
 .profile-topnav {
-    /* Full-width header bar wyrównany do paneli pod spodem */
-    margin: clamp(8px, 1.4vw, 18px) clamp(8px, 1.6vw, 22px) 0;
+    /* Sticky wewnątrz profile-main — automatycznie wyrównane do paneli pod spodem
+       (ten sam padding profile-main, ten sam scrollbar gutter) */
+    position: sticky;
+    top: 0;
     z-index: 11;
     display: flex;
     align-items: center;
@@ -382,6 +384,8 @@ select {
     padding: 6px 6px 6px 18px;
     box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
     flex-shrink: 0;
+    /* Margin tylko dolny — dystans od następnego panelu w siatce profile-main */
+    margin-bottom: 0;
 }
 
 /* Brand area — logo + tytuł aplikacji po lewej */
