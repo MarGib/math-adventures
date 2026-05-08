@@ -416,80 +416,97 @@
         }
     }
 
-    /** Sign-up z verbose progress. onStep(text) opcjonalny callback do UI. */
+    /** Wraps a promise with a timeout. Rejects after `ms` if not settled. */
+    function withTimeout(promise, ms, label) {
+        return Promise.race([
+            promise,
+            new Promise((_, reject) => setTimeout(
+                () => reject(new Error(`${label || 'Operacja'} — przekroczono czas (${ms}ms)`)),
+                ms
+            ))
+        ]);
+    }
+
+    /** Sign-up z verbose progress. onStep(text) opcjonalny callback do UI.
+        Każdy krok ma własny timeout — żaden zawieszony request nie blokuje całego flow.
+        Pomijamy redundantny pre-check nazwy: cloudClaimUsername (RPC) jest atomowy,
+        a sb.auth.signUp/updateUser zwróci błąd duplikatu jeśli nazwa zajęta. */
     async function cloudSignUp(username, password, email, onStep) {
         const step = (text) => { if (onStep) onStep(text); };
         if (!cloudReady) throw new Error('Chmura niedostępna');
         const synth = syntheticEmailFor(username);
 
-        step('Sprawdzam dostępność nazwy...');
-        const checkRes = await cloudCheckUsername(username);
-        if (checkRes === 'taken') {
-            throw new Error(`Nazwa "${username}" jest już zajęta przez innego gracza`);
-        }
-
         step('Sprawdzam stan sesji...');
-        let { data: { user: current } } = await sb.auth.getUser();
+        const sessionRes = await withTimeout(sb.auth.getUser(), 5000, 'getUser');
+        const current = sessionRes && sessionRes.data && sessionRes.data.user;
 
         let resultUser;
         if (current && current.is_anonymous) {
-            step('Aktualizuję anonimowe konto na trwałe (zachowuję wyniki)...');
-            const { data, error } = await sb.auth.updateUser({ email: synth, password });
+            step('Aktualizuję anonimowe konto (zachowuję wyniki)...');
+            const { data, error } = await withTimeout(
+                sb.auth.updateUser({ email: synth, password }),
+                8000, 'updateUser'
+            );
             if (error) {
                 console.error('[cloud] updateUser error:', error);
-                if (/email.*already/i.test(error.message)) {
-                    throw new Error('Nazwa już ma konto. Użyj zakładki "Zaloguj się" zamiast "Stwórz konto".');
+                if (/email.*already|registered|exists/i.test(error.message)) {
+                    throw new Error(`Nazwa "${username}" jest już zajęta. Wybierz inną lub zaloguj się.`);
                 }
                 if (/confirm/i.test(error.message)) {
-                    throw new Error('Konto wymaga potwierdzenia. Wyłącz "Confirm email" w Supabase Auth.');
+                    throw new Error('Konto wymaga potwierdzenia email — wyłącz "Confirm email" w Supabase Auth.');
                 }
                 throw new Error(error.message || 'Aktualizacja konta nie powiodła się');
             }
             resultUser = data && data.user;
-            // Defensywnie sprawdź czy upgrade naprawdę przeszedł
             if (resultUser && resultUser.is_anonymous) {
-                throw new Error('Konto wciąż jest anonimowe (Supabase ma włączone "Confirm email" dla zmian — wyłącz w Auth → Email).');
+                throw new Error('Konto wciąż anonimowe — wyłącz "Confirm email" w Supabase Auth → Email.');
             }
         } else {
             step('Tworzę nowe konto...');
-            const { data, error } = await sb.auth.signUp({ email: synth, password });
+            const { data, error } = await withTimeout(
+                sb.auth.signUp({ email: synth, password }),
+                8000, 'signUp'
+            );
             if (error) {
                 console.error('[cloud] signUp error:', error);
-                if (/registered|exists/i.test(error.message)) {
-                    throw new Error('Nazwa już ma konto. Użyj zakładki "Zaloguj się".');
+                if (/registered|exists|already/i.test(error.message)) {
+                    throw new Error(`Nazwa "${username}" jest już zajęta. Wybierz inną lub zaloguj się.`);
                 }
                 throw new Error(error.message || 'Rejestracja nie powiodła się');
             }
             resultUser = data && data.user;
             if (!resultUser) {
-                throw new Error('Konto utworzone, ale wymaga potwierdzenia. Wyłącz "Confirm email" w Supabase Auth → Email.');
+                throw new Error('Konto wymaga potwierdzenia email — wyłącz "Confirm email" w Supabase Auth.');
             }
         }
 
         step('Odświeżam sesję...');
-        await sb.auth.refreshSession().catch(() => {});
+        await withTimeout(sb.auth.refreshSession(), 4000, 'refreshSession').catch((e) => {
+            console.warn('[cloud] refreshSession skipped:', e && e.message);
+        });
 
-        step('Rezerwuję nazwę w bazie...');
-        const claim = await cloudClaimUsername(username, user.avatar);
+        step('Rezerwuję nazwę...');
+        const claim = await withTimeout(cloudClaimUsername(username, user.avatar), 6000, 'claimUsername');
         if (!claim.ok) {
             const reason = claim.reason || 'unknown';
             const reasonText = {
-                taken_by_other: `Nazwa "${username}" jest zajęta przez kogoś innego`,
-                not_authenticated: 'Brak sesji — odśwież stronę i spróbuj ponownie',
+                taken_by_other: `Nazwa "${username}" jest już zajęta`,
+                not_authenticated: 'Brak sesji — odśwież stronę',
                 invalid_length: 'Nazwa musi mieć 2-20 znaków',
-                invalid_chars: 'Nazwa może zawierać tylko litery, cyfry, _ i -',
+                invalid_chars: 'Tylko litery, cyfry, _ i -',
                 rpc_error: 'Błąd bazy: ' + (claim.detail || ''),
                 no_cloud: 'Brak połączenia z chmurą'
-            }[reason] || `Nie udało się zarezerwować nazwy (${reason})`;
+            }[reason] || `Nie udało się zarezerwować (${reason})`;
             throw new Error(reasonText);
         }
 
         if (email && email.trim()) {
-            step('Zapisuję adres email do odzyskiwania...');
+            step('Zapisuję email do odzyskiwania...');
             try {
-                await sb.from('profiles')
-                    .update({ email: email.trim().toLowerCase() })
-                    .eq('id', resultUser.id);
+                await withTimeout(
+                    sb.from('profiles').update({ email: email.trim().toLowerCase() }).eq('id', resultUser.id),
+                    4000, 'saveEmail'
+                );
             } catch (e) {
                 console.warn('[cloud] email save failed:', e && e.message);
                 // Nie blokujemy — email do recovery to "nice to have"
@@ -497,7 +514,9 @@
         }
 
         step('Finalizuję...');
-        await refreshCloudUser();
+        await withTimeout(refreshCloudUser(), 5000, 'refreshCloudUser').catch((e) => {
+            console.warn('[cloud] refreshCloudUser skipped:', e && e.message);
+        });
         return cloudUser;
     }
 
@@ -510,23 +529,25 @@
         const synth = syntheticEmailFor(username);
 
         step('Loguję na konto...');
-        // Supabase v2 signInWithPassword automatycznie replace'uje lokalna
-        // sesje JWT — nie potrzebujemy explicit signOut. Inne urzadzenia
-        // tego samego konta dalej dzialaja (kazde ma swoj token).
-        const { data, error } = await sb.auth.signInWithPassword({ email: synth, password });
+        const { data, error } = await withTimeout(
+            sb.auth.signInWithPassword({ email: synth, password }),
+            8000, 'signInWithPassword'
+        );
         if (error) {
             console.error('[cloud] signIn error:', error);
             if (/Invalid login credentials|invalid_credentials/i.test(error.message)) {
                 throw new Error('Nieprawidłowa nazwa lub hasło');
             }
             if (/Email not confirmed/i.test(error.message)) {
-                throw new Error('Konto nie zostało potwierdzone. Wyłącz "Confirm email" w Supabase Auth → Email.');
+                throw new Error('Konto nie potwierdzone — wyłącz "Confirm email" w Supabase Auth.');
             }
-            // Edge case: jakas wersja Supabase wymaga signOut przed signIn
             if (/already.*signed|active.*session/i.test(error.message)) {
-                step('Czyszczę poprzednią sesję lokalnie...');
+                step('Czyszczę poprzednią sesję...');
                 await sb.auth.signOut({ scope: 'local' }).catch(() => {});
-                const retry = await sb.auth.signInWithPassword({ email: synth, password });
+                const retry = await withTimeout(
+                    sb.auth.signInWithPassword({ email: synth, password }),
+                    8000, 'signInRetry'
+                );
                 if (retry.error) throw new Error(retry.error.message || 'Logowanie nieudane');
             } else {
                 throw new Error(error.message || 'Logowanie nieudane');
@@ -534,7 +555,7 @@
         }
 
         step('Pobieram profil...');
-        await refreshCloudUser();
+        await withTimeout(refreshCloudUser(), 5000, 'refreshCloudUser');
         if (cloudUser && cloudUser.profile) {
             user.name = cloudUser.profile.username;
             user.avatar = cloudUser.profile.avatar || user.avatar;
@@ -1253,11 +1274,21 @@
             if (el) { el.textContent = ''; el.className = 'acc-status'; }
         });
 
-        // Prefill nazwy z formularza profilu (dla anon view signup form)
+        // Prefill nazwy: profile input → user.name → loadLastUser → puste
+        // Cel: jeśli grasz lokalnie pod jakąś nazwą, formularz ją podstawia
+        // i jednym kliknięciem rezerwujesz tę nazwę w chmurze.
         const nameInput = document.getElementById('acc-signup-name');
-        const profileInput = document.getElementById('username');
-        if (nameInput && profileInput && profileInput.value) {
-            nameInput.value = profileInput.value;
+        const signinNameInput = document.getElementById('acc-signin-name');
+        if (nameInput) {
+            const profileInput = document.getElementById('username');
+            const last = loadLastUser();
+            const localName =
+                (profileInput && profileInput.value && profileInput.value.trim()) ||
+                (user && user.name && user.name !== 'Gracz' ? user.name : '') ||
+                (last && last.name) ||
+                '';
+            if (localName && !nameInput.value) nameInput.value = localName;
+            if (signinNameInput && localName && !signinNameInput.value) signinNameInput.value = localName;
         }
 
         renderAccountModal();
@@ -1461,15 +1492,9 @@
         }
 
         try {
-            const signUpTimeout = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Przekroczono czas oczekiwania. Sprawdź połączenie i spróbuj ponownie.')), 12000)
-            );
-            await Promise.race([
-                cloudSignUp(name, pass, email, (text) => {
-                    setAccStatus('acc-signup-status', '⏳ ' + text, 'info');
-                }),
-                signUpTimeout
-            ]);
+            await cloudSignUp(name, pass, email, (text) => {
+                setAccStatus('acc-signup-status', '⏳ ' + text, 'info');
+            });
             user.name = name;
             const profileInput = document.getElementById('username');
             if (profileInput) profileInput.value = name;
@@ -1498,15 +1523,9 @@
         }
 
         try {
-            const signInTimeout = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Przekroczono czas oczekiwania. Sprawdź połączenie i spróbuj ponownie.')), 12000)
-            );
-            await Promise.race([
-                cloudSignIn(name, pass, (text) => {
-                    setAccStatus('acc-signin-status', '⏳ ' + text, 'info');
-                }),
-                signInTimeout
-            ]);
+            await cloudSignIn(name, pass, (text) => {
+                setAccStatus('acc-signin-status', '⏳ ' + text, 'info');
+            });
             // Zaktualizuj formularz profilu
             const profileInput = document.getElementById('username');
             if (profileInput) profileInput.value = user.name;
