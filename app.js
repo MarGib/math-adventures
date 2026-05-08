@@ -1380,7 +1380,8 @@
                 await cloudSignOut();
             }
             clearTimeout(timeoutId);
-            // Zamknij modal i odśwież stronę — gwarantuje czysty stan UI
+            // Wyczyść "ostatni gracz" — po wylogowaniu pokażemy ekran wyboru gracza
+            try { localStorage.removeItem(lastUserKey); } catch (_) {}
             closeAccount();
             setTimeout(() => location.reload(), 200);
         } catch (e) {

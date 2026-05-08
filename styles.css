@@ -723,7 +723,8 @@ body.is-mode-online .wh-mode-dot {
 
 /* Stats mini-row */
 .wh-stats-mini {
-    display: inline-flex;
+    display: flex;
+    width: 100%;
     align-items: center;
     gap: 0;
     background: rgba(255,255,255,0.65);
@@ -738,6 +739,7 @@ body.is-mode-online .wh-mode-dot {
     flex-direction: column;
     align-items: center;
     padding: 0 18px;
+    flex: 1;
 }
 
 .wh-stat-divider {
@@ -1453,6 +1455,11 @@ body.has-returning-user .profile-dashboard {
 .btn-nav-extra,
 .nav-drawer {
     display: none !important;
+}
+
+/* Przycisk "Zakończ grę" widoczny podczas rozgrywki */
+body.game-active #screen-game .btn-container-bottom {
+    display: flex !important;
 }
 
 /* ============================================================
@@ -4000,6 +4007,7 @@ body.has-returning-user .profile-dashboard {
 
 .acc-actions {
     display: flex;
+    justify-content: center;
     gap: 8px;
     flex-wrap: wrap;
     margin-top: 4px;
@@ -4474,12 +4482,9 @@ body.has-returning-user .profile-dashboard {
     border: 1px dashed rgba(220, 38, 38, 0.40);
     color: var(--bad-dark);
     border-radius: 10px;
-    padding: 9px 14px;
-    font-family: var(--f-display);
     font-weight: 600;
     font-size: 13px;
     cursor: pointer;
-    text-align: center;
     transition: background 0.2s ease, border-color 0.2s ease;
 }
 
