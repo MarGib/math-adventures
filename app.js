@@ -1780,6 +1780,23 @@
         }
     }
 
+    /* Aktualizuje etykietę przycisku Pełny ekran/Wyjdź zależnie od stanu */
+    function updateFullscreenButton() {
+        const btn = document.querySelector('.ptn-btn-fs');
+        if (!btn) return;
+        const icon = btn.querySelector('.ptn-icon');
+        const lbl = btn.querySelector('.ptn-lbl');
+        const inFs = !!document.fullscreenElement;
+        if (icon) icon.textContent = inFs ? '⛶' : '⛶';
+        if (lbl) lbl.textContent = inFs ? 'Wyjdź' : 'Pełny ekran';
+        btn.setAttribute('aria-label', inFs ? 'Wyjdź z pełnego ekranu' : 'Pełny ekran');
+        btn.title = inFs ? 'Wyjdź z trybu pełnoekranowego' : 'Włącz tryb pełnoekranowy';
+    }
+
+    // Słuchaj zmian fullscreen — różne prefiksy dla cross-browser
+    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange']
+        .forEach(ev => document.addEventListener(ev, updateFullscreenButton));
+
     function switchScreen(id) {
         ["screen-profile", "screen-setup", "screen-game"].forEach((screenId) => {
             const el = document.getElementById(screenId);
