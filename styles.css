@@ -1457,6 +1457,11 @@ body.has-returning-user .profile-dashboard {
     display: none !important;
 }
 
+/* Przycisk "Zakończ grę" widoczny podczas rozgrywki */
+body.game-active #screen-game .btn-container-bottom {
+    display: flex !important;
+}
+
 /* ============================================================
    HERO (profile screen)
    ============================================================ */
@@ -4002,6 +4007,7 @@ body.has-returning-user .profile-dashboard {
 
 .acc-actions {
     display: flex;
+    justify-content: center;
     gap: 8px;
     flex-wrap: wrap;
     margin-top: 4px;
@@ -4476,12 +4482,9 @@ body.has-returning-user .profile-dashboard {
     border: 1px dashed rgba(220, 38, 38, 0.40);
     color: var(--bad-dark);
     border-radius: 10px;
-    padding: 9px 14px;
-    font-family: var(--f-display);
     font-weight: 600;
     font-size: 13px;
     cursor: pointer;
-    text-align: center;
     transition: background 0.2s ease, border-color 0.2s ease;
 }
 
