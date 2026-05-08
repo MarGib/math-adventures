@@ -1979,11 +1979,8 @@
         const last = loadLastUser();
         if (!banner) return;
         if (!last) {
-            // Brak ostatniego gracza — ukryj profile-top, pokaż formularz dla nowego
-            if (banner) banner.style.display = '';
-            if (top) top.style.display = '';
-            if (grid) grid.style.display = '';
             document.body.classList.remove('has-returning-user');
+            switchScreen('screen-setup');
             return;
         }
         document.getElementById('welcome-avatar').textContent = last.avatar;
