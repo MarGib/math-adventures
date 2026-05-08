@@ -1355,6 +1355,12 @@ body.has-returning-user .profile-dashboard {
 /* ============================================================
    MOBILE TAB BAR — stała dolna nawigacja, widoczna tylko ≤760px
    ============================================================ */
+/* Tab bar ukryty na ekranach setup i game — tam nie jest potrzebny */
+#screen-setup.is-active ~ .mobile-tab-bar,
+#screen-game.is-active ~ .mobile-tab-bar {
+    display: none !important;
+}
+
 .mobile-tab-bar {
     display: none; /* pokazana tylko na mobile */
     position: fixed;
