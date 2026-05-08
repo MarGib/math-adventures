@@ -436,16 +436,24 @@
         if (!cloudReady) throw new Error('Chmura niedostępna');
         const synth = syntheticEmailFor(username);
 
-        step('Sprawdzam stan sesji...');
-        const sessionRes = await withTimeout(sb.auth.getUser(), 5000, 'getUser');
-        const current = sessionRes && sessionRes.data && sessionRes.data.user;
+        // getSession() czyta lokalny JWT — natychmiastowe, bez network call.
+        // (getUser() weryfikuje token na serwerze i potrafi wisieć na cold-start.)
+        const { data: sessData } = await sb.auth.getSession();
+        const current = sessData && sessData.session && sessData.session.user;
 
         let resultUser;
-        if (current && current.is_anonymous) {
+        // Recovery case: poprzednia próba utworzyła auth ale claim padł.
+        // Jeśli już jesteśmy zalogowani jako ten user (po emailu), pomiń tworzenie.
+        const alreadyThisUser = current && !current.is_anonymous && current.email === synth;
+
+        if (alreadyThisUser) {
+            step('Wznawiam rezerwację (konto już istnieje)...');
+            resultUser = current;
+        } else if (current && current.is_anonymous) {
             step('Aktualizuję anonimowe konto (zachowuję wyniki)...');
             const { data, error } = await withTimeout(
                 sb.auth.updateUser({ email: synth, password }),
-                8000, 'updateUser'
+                15000, 'updateUser'
             );
             if (error) {
                 console.error('[cloud] updateUser error:', error);
@@ -465,7 +473,7 @@
             step('Tworzę nowe konto...');
             const { data, error } = await withTimeout(
                 sb.auth.signUp({ email: synth, password }),
-                8000, 'signUp'
+                15000, 'signUp'
             );
             if (error) {
                 console.error('[cloud] signUp error:', error);
@@ -486,7 +494,16 @@
         });
 
         step('Rezerwuję nazwę...');
-        const claim = await withTimeout(cloudClaimUsername(username, user.avatar), 6000, 'claimUsername');
+        // Retry raz — pierwszy RPC po signUp często cold-startuje (2-5s),
+        // drugi przelatuje natychmiast.
+        let claim;
+        try {
+            claim = await withTimeout(cloudClaimUsername(username, user.avatar), 12000, 'claimUsername');
+        } catch (e) {
+            console.warn('[cloud] claimUsername first attempt failed, retrying:', e && e.message);
+            step('Rezerwuję nazwę (ponawiam)...');
+            claim = await withTimeout(cloudClaimUsername(username, user.avatar), 12000, 'claimUsername-retry');
+        }
         if (!claim.ok) {
             const reason = claim.reason || 'unknown';
             const reasonText = {
