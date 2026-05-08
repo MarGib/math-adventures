@@ -3908,6 +3908,34 @@ body.has-returning-user .profile-dashboard {
     gap: 12px;
 }
 
+/* Hint pod formularzem — link do drugiego tabu */
+.acc-tab-switch-hint {
+    margin: 6px 0 0;
+    text-align: center;
+    font-size: 13px;
+    color: var(--ink-muted);
+    font-weight: 500;
+}
+
+.acc-tab-link {
+    background: none;
+    border: none;
+    color: var(--c-teal-dark);
+    font-family: var(--f-display);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    margin-left: 4px;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.acc-tab-link:hover {
+    background: rgba(15, 118, 110, 0.10);
+    color: var(--c-teal);
+}
+
 .acc-info {
     background: rgba(15, 118, 110, 0.06);
     border-left: 3px solid var(--c-teal);

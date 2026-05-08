@@ -625,9 +625,9 @@
         }
         // Anonymous — w chmurze ale bez konta
         body.classList.add('is-mode-anon');
-        if (text) text.textContent = 'Anonimowo online';
+        if (text) text.textContent = 'Gość · bez konta';
         if (action) action.textContent = 'Zaloguj ›';
-        if (pill) pill.title = 'Wyniki w globalnym rankingu, ale bez synchronizacji między urządzeniami. Zaloguj się aby zsynchronizować.';
+        if (pill) pill.title = 'Grasz jako gość — wyniki tylko z tego urządzenia. Zaloguj się aby synchronizować je między urządzeniami i zachować przy zmianie przeglądarki.';
     }
 
     const confettiColors = ["#0F766E", "#3730A3", "#D97706", "#0EA5E9", "#10B981", "#F59E0B"];
@@ -1304,7 +1304,7 @@
         if (buttons) buttons.style.display = 'flex';
 
         if (activeView === 'online') populateAccountOnlineView();
-        if (activeView === 'anon') accountTab('signup');
+        if (activeView === 'anon') accountTab('signin'); // Domyślnie LOGIN — większość wracających ma już konto
     }
 
     function populateAccountOnlineView() {
