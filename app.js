@@ -188,33 +188,40 @@
         };
     }
 
+    /** Promise ostatniego zapisu do bazy — pozwala innym funkcjom poczekac
+        az dane sie skomituja przed nastepnym fetch'em (eliminuje race "saved
+        but not yet visible in leaderboard"). */
+    let lastCloudSavePromise = Promise.resolve();
+
     async function cloudSaveResult(result) {
-        if (!cloudReady || !cloudUser || !cloudUser.profile) return;
-        try {
-            const correct = result.history.filter(h => h.ok).length;
-            const wrong = result.history.length - correct;
-            const maxCombo = (() => {
-                let m = 0, c = 0;
+        if (!cloudReady || !cloudUser || !cloudUser.profile) return Promise.resolve();
+        const savePromise = (async () => {
+            try {
+                const correct = result.history.filter(h => h.ok).length;
+                const wrong = result.history.length - correct;
+                let maxCombo = 0, c = 0;
                 for (const h of result.history) {
-                    if (h.ok) { c++; if (c > m) m = c; } else c = 0;
+                    if (h.ok) { c++; if (c > maxCombo) maxCombo = c; } else c = 0;
                 }
-                return m;
-            })();
-            await sb.from('game_results').insert({
-                user_id: cloudUser.id,
-                score: result.score,
-                mode: result.mode,
-                difficulty: result.difficulty,
-                duration_minutes: result.timeMin,
-                correct_count: correct,
-                wrong_count: wrong,
-                max_combo: maxCombo,
-                history: result.history,
-                client_info: getClientInfo()
-            });
-        } catch (e) {
-            console.warn('[cloud] save failed:', e && e.message);
-        }
+                const { error } = await sb.from('game_results').insert({
+                    user_id: cloudUser.id,
+                    score: result.score,
+                    mode: result.mode,
+                    difficulty: result.difficulty,
+                    duration_minutes: result.timeMin,
+                    correct_count: correct,
+                    wrong_count: wrong,
+                    max_combo: maxCombo,
+                    history: result.history,
+                    client_info: getClientInfo()
+                });
+                if (error) throw error;
+            } catch (e) {
+                console.warn('[cloud] save failed:', e && e.message);
+            }
+        })();
+        lastCloudSavePromise = savePromise;
+        return savePromise;
     }
 
     /** Sprawdza czy nazwa jest wolna. Zwraca: 'free' | 'taken' | 'mine' | null (gdy bez chmury). */
@@ -263,19 +270,33 @@
         return [...out].filter(n => n.length >= 2 && n.length <= 20).slice(0, 3);
     }
 
+    /** Race fetch z timeoutem. Po X ms odrzucamy promise i zwracamy fallback.
+        Bardzo wazne na flakey network — bez tego UI moze zwisac na "Wczytuję..." */
+    function withTimeout(promise, ms, fallback) {
+        let timer;
+        const timeoutPromise = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error('CLOUD_TIMEOUT')), ms || 5000);
+        });
+        return Promise.race([promise, timeoutPromise])
+            .then(v => { clearTimeout(timer); return v; })
+            .catch(err => {
+                clearTimeout(timer);
+                console.warn('[cloud] timeout/error:', err && err.message);
+                return fallback;
+            });
+    }
+
     async function cloudFetchGlobalTop(limit, modeFilter) {
         if (!cloudReady) return [];
-        try {
+        const doFetch = async () => {
             let q = sb.from('leaderboard_global').select('*');
             if (modeFilter && modeFilter !== 'all') q = q.eq('mode', modeFilter);
             q = q.limit(limit || 20);
             const { data, error } = await q;
             if (error) throw error;
             return data || [];
-        } catch (e) {
-            console.warn('[cloud] fetch top failed:', e && e.message);
-            return [];
-        }
+        };
+        return await withTimeout(doFetch(), 5000, []);
     }
 
     /** Pobierz wyniki ZALOGOWANEGO usera z bazy (cross-device sync).
@@ -283,7 +304,7 @@
         Override przez sortBy: 'score' aby dostać top-N. */
     async function cloudFetchMyResults(limit, modeFilter, sortBy) {
         if (!cloudReady || !cloudUser) return [];
-        try {
+        const doFetch = async () => {
             let q = sb.from('game_results')
                 .select('*')
                 .eq('user_id', cloudUser.id);
@@ -297,23 +318,19 @@
             const { data, error } = await q;
             if (error) throw error;
             return data || [];
-        } catch (e) {
-            console.warn('[cloud] fetch my results failed:', e && e.message);
-            return [];
-        }
+        };
+        return await withTimeout(doFetch(), 5000, []);
     }
 
     /** Fetch agregowanych rankingów (klasy/szkoły/miasta). */
     async function cloudFetchAggregated(view, limit) {
         if (!cloudReady) return [];
-        try {
+        const doFetch = async () => {
             const { data, error } = await sb.from(view).select('*').limit(limit || 50);
             if (error) throw error;
             return data || [];
-        } catch (e) {
-            console.warn(`[cloud] fetch ${view} failed:`, e && e.message);
-            return [];
-        }
+        };
+        return await withTimeout(doFetch(), 5000, []);
     }
 
     /** Top wyniki w danej szkole. */
@@ -2819,6 +2836,14 @@
         document.getElementById("report-live-footer").style.display = "block";
         document.getElementById("report-archive-footer").style.display = "none";
         document.getElementById("archive-badge").style.display = "none";
+
+        // Gdy save sie zakonczy — odswiezamy widgety profilu zeby uzytkownik
+        // od razu widzial nowy wynik bez F5. lastCloudSavePromise zostal
+        // ustawiony w cloudSaveResult() przez saveScore() powyżej.
+        Promise.resolve(lastCloudSavePromise).finally(() => {
+            renderProfileTopList();
+            renderWelcomeBack();
+        });
     }
 
     function randomInt(limit) {
@@ -3359,6 +3384,7 @@
                     case 'closeEditProfile': closeEditProfile(); break;
                     case 'saveEditProfile': saveEditProfile(); break;
                     case 'topListTab': topListTab(arg); break;
+                    case 'refreshProfileTopList': renderProfileTopList(); break;
                     case 'lbScope': lbScope(arg); break;
                     case 'lbFilter': lbFilter(arg); break;
                     case 'lbRankingKind': lbRankingKind(arg); break;
@@ -3435,23 +3461,39 @@
     /* ---------- Profile extras: Top-3 (Moje / Globalne) + math facts rotation ---------- */
     let profileTopMode = 'my'; // 'my' | 'global'
 
+    let profileTopRenderToken = 0;
+
     async function renderProfileTopList() {
         const list = document.getElementById('profile-top-list');
         if (!list) return;
+        // Zapobiega race condition gdy uzytkownik klika szybko miedzy tabami
+        const token = ++profileTopRenderToken;
         list.innerHTML = '<li class="top-empty">⏳ Wczytuję wyniki...</li>';
+
+        // Watchdog — jezeli za 5s nic, pokazujemy "spróbuj ponownie"
+        const stuckTimer = setTimeout(() => {
+            if (token !== profileTopRenderToken) return;
+            list.innerHTML = '<li class="top-empty">⚠ Trwa to zbyt długo. <button class="top-retry-btn" data-action="refreshProfileTopList" type="button">Spróbuj ponownie</button></li>';
+        }, 5500);
 
         let entries = [];
         if (profileTopMode === 'global' && cloudReady) {
             const cloud = await cloudFetchGlobalTop(3);
+            if (token !== profileTopRenderToken) return;
             entries = cloud.map(c => ({ n: c.username, a: c.avatar, s: c.score, m: c.mode, diff: c.difficulty }));
         } else if (profileTopMode === 'my' && cloudUser && cloudUser._persistent && cloudReady) {
             // Zalogowany — ciągnij z cloud, TOP po score (to "Najlepsze wyniki", nie historia)
             const cloud = await cloudFetchMyResults(3, null, 'score');
+            if (token !== profileTopRenderToken) return;
             entries = cloud.map(c => ({ n: cloudUser.profile && cloudUser.profile.username || user.name, a: cloudUser.profile && cloudUser.profile.avatar || user.avatar, s: c.score, m: c.mode, diff: c.difficulty }));
         } else {
             // Anon / brak chmury — local storage
             entries = loadLeaderboardData().slice(0, 3);
         }
+
+        // Sukces — anuluj watchdog
+        clearTimeout(stuckTimer);
+        if (token !== profileTopRenderToken) return;
 
         if (!entries.length) {
             const msg = profileTopMode === 'global'
