@@ -84,40 +84,67 @@
         Returns: { ok: bool, reason?: string, profile?: object } */
     async function cloudClaimUsername(username, avatar) {
         if (!cloudReady) return { ok: false, reason: 'no_cloud' };
-        // V2 — szczegolowy raport
+        const av = avatar || '🦉';
+
+        // PRIMARY: direct UPSERT na profiles. RLS pozwala authenticated user-owi
+        // INSERT/UPDATE własnego profilu (auth.uid() = id). Dużo szybsze niż RPC.
+        try {
+            const { data: sessData } = await sb.auth.getSession();
+            const uid = sessData && sessData.session && sessData.session.user && sessData.session.user.id;
+            if (!uid) {
+                // Brak sesji — nie możemy zrobić direct, padnij do RPC
+                throw new Error('no-session');
+            }
+
+            const { data, error } = await sb
+                .from('profiles')
+                .upsert({ id: uid, username, avatar: av, display_name: username }, { onConflict: 'id' })
+                .select()
+                .single();
+
+            if (!error && data) {
+                if (cloudUser) cloudUser.profile = data;
+                return { ok: true, profile: data };
+            }
+            // Unique violation na username = nazwa zajęta
+            if (error && (error.code === '23505' || /unique|duplicate/i.test(error.message || ''))) {
+                return { ok: false, reason: 'taken_by_other' };
+            }
+            console.warn('[cloud] direct upsert failed, falling back to RPC:', error && error.message);
+        } catch (e) {
+            console.warn('[cloud] direct upsert threw, falling back to RPC:', e && e.message);
+        }
+
+        // FALLBACK: RPC v2 (gdy direct nie zadziała — np. inne RLS, dziwny stan sesji)
         try {
             const { data, error } = await sb.rpc('claim_username_v2', {
                 p_username: username,
-                p_avatar: avatar,
+                p_avatar: av,
                 p_display_name: username
             });
             if (!error && data && typeof data === 'object') {
-                if (data.ok && cloudUser) {
-                    cloudUser.profile = data.profile;
-                }
+                if (data.ok && cloudUser) cloudUser.profile = data.profile;
                 return data;
-            }
-            if (error && !/function .* does not exist/i.test(error.message || '')) {
-                console.warn('[cloud] claim_username_v2 error:', error.message);
             }
         } catch (e) {
             console.warn('[cloud] claim_username_v2 threw:', e && e.message);
         }
-        // Fallback do v1
+
+        // FALLBACK 2: RPC v1
         try {
             const { data, error } = await sb.rpc('claim_username', {
                 p_username: username,
-                p_avatar: avatar,
+                p_avatar: av,
                 p_display_name: username
             });
             if (error) throw error;
             if (data === true) {
-                if (cloudUser) cloudUser.profile = { username, avatar, display_name: username };
-                return { ok: true, profile: { username, avatar, display_name: username } };
+                if (cloudUser) cloudUser.profile = { username, avatar: av, display_name: username };
+                return { ok: true, profile: { username, avatar: av, display_name: username } };
             }
             return { ok: false, reason: 'taken_by_other' };
         } catch (e) {
-            console.warn('[cloud] claim_username v1 failed:', e && e.message);
+            console.warn('[cloud] all claim attempts failed:', e && e.message);
             return { ok: false, reason: 'rpc_error', detail: e && e.message };
         }
     }
