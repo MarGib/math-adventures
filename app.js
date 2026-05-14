@@ -2504,7 +2504,37 @@
         }
     }
 
-    function welcomeChange() {
+    async function welcomeChange() {
+        if (!confirm('Wylogować obecnego gracza i przejść do ekranu logowania?\n\nNa tym urządzeniu rozpoczniesz od czystego ekranu. Inne urządzenia tego konta (jeśli istnieją) pozostają zalogowane.')) return;
+
+        // 1) Wyloguj z chmury LOCALNIE (scope:'local' — inne urzadzenia
+        //    tego samego konta dalej zalogowane, tylko TO urzadzenie
+        //    wraca do anonimowej sesji).
+        if (cloudReady && cloudUser && cloudUser._persistent) {
+            try {
+                await cloudSignOut();
+            } catch (e) {
+                console.warn('[welcomeChange] signOut failed:', e && e.message);
+            }
+        }
+
+        // 2) Usun zapamietanego ostatniego gracza (zeby welcome-back juz
+        //    sie nie pojawil przy nastepnym wejsciu)
+        try { localStorage.removeItem(lastUserKey); } catch (_) {}
+
+        // 3) Reset stanu user do default (Gracz + sowa)
+        user = { name: 'Gracz', avatar: '🦉' };
+
+        // 4) Wyczysc formularz, przywroc default avatar selection
+        const usernameInput = document.getElementById('username');
+        if (usernameInput) usernameInput.value = '';
+        document.querySelectorAll('.avatar-option').forEach(a => {
+            a.classList.toggle('selected', a.textContent.trim() === '🦉');
+        });
+        const cur = document.getElementById('avatar-current');
+        if (cur) cur.textContent = '🦉';
+
+        // 5) Schowaj welcome-back i powiazane widgety
         const banner = document.getElementById('welcome-back');
         const top = document.getElementById('profile-top');
         if (banner) banner.style.display = 'none';
@@ -2512,12 +2542,22 @@
         document.body.classList.remove('has-returning-user');
         const grid = document.querySelector('.profile-grid');
         if (grid) grid.style.display = '';
-        // Zatrzymaj rotację faktów — widget ukryty
-        if (pfwState.intervalId) { clearInterval(pfwState.intervalId); pfwState.intervalId = null; }
-        if (pfwState.progressId) { clearInterval(pfwState.progressId); pfwState.progressId = null; }
-        // Scroll user to the form so they can change name/avatar
-        const form = document.querySelector('.profile-form-card');
-        if (form) form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Zatrzymaj rotacje widgetow
+        if (typeof pfwState !== 'undefined') {
+            if (pfwState.intervalId) { clearInterval(pfwState.intervalId); pfwState.intervalId = null; }
+            if (pfwState.progressId) { clearInterval(pfwState.progressId); pfwState.progressId = null; }
+        }
+
+        // 6) Odswiez statusy + scroll na gore + focus na nazwe
+        renderProfileTopList();
+        updateCloudStatusPill();
+
+        const main = document.querySelector('.profile-main');
+        if (main && main.scrollTo) main.scrollTo({ top: 0, behavior: 'smooth' });
+
+        setTimeout(() => {
+            if (usernameInput) usernameInput.focus();
+        }, 300);
     }
 
     function getNextRewardMilestone(combo) {
