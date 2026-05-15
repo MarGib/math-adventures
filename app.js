@@ -79,85 +79,41 @@
     }
 
     /** Próbuje zarezerwować nazwę gracza w chmurze.
-        Najpierw probuje claim_username_v2 (zwraca jsonb z reason),
-        fallback na stara claim_username (zwraca boolean).
-        Returns: { ok: bool, reason?: string, profile?: object } */
+        Primary path to jeden szybki UPSERT bez zwrotnego SELECT-a. */
     async function cloudClaimUsername(username, avatar) {
         if (!cloudReady) return { ok: false, reason: 'no_cloud' };
         const av = avatar || '🦉';
 
-        // PRIMARY: direct UPSERT na profiles. RLS pozwala authenticated user-owi
-        // INSERT/UPDATE własnego profilu (auth.uid() = id). Dużo szybsze niż RPC.
         try {
             const { data: sessData } = await sb.auth.getSession();
             const uid = sessData && sessData.session && sessData.session.user && sessData.session.user.id;
             if (!uid) {
-                // Brak sesji — nie możemy zrobić direct, padnij do RPC
-                throw new Error('no-session');
+                return { ok: false, reason: 'not_authenticated' };
             }
 
-            const { data, error } = await withFallbackTimeout(
+            const { error } = await withRejectingTimeout(
                 sb
                 .from('profiles')
-                .upsert({ id: uid, username, avatar: av, display_name: username }, { onConflict: 'id' })
-                .select()
-                .single(),
-                7000,
-                { data: null, error: { message: 'timeout' } }
+                .upsert({ id: uid, username, avatar: av, display_name: username }, { onConflict: 'id' }),
+                10000,
+                'saveProfile'
             );
-
-            if (!error && data) {
-                if (cloudUser) cloudUser.profile = data;
-                return { ok: true, profile: data };
-            }
-            // Unique violation na username = nazwa zajęta
             if (error && (error.code === '23505' || /unique|duplicate/i.test(error.message || ''))) {
                 return { ok: false, reason: 'taken_by_other' };
             }
-            console.warn('[cloud] direct upsert failed, falling back to RPC:', error && error.message);
-        } catch (e) {
-            console.warn('[cloud] direct upsert threw, falling back to RPC:', e && e.message);
-        }
-
-        // FALLBACK: RPC v2 (gdy direct nie zadziała — np. inne RLS, dziwny stan sesji)
-        try {
-            const { data, error } = await withFallbackTimeout(
-                sb.rpc('claim_username_v2', {
-                    p_username: username,
-                    p_avatar: av,
-                    p_display_name: username
-                }),
-                9000,
-                { data: null, error: { message: 'timeout' } }
-            );
-            if (!error && data && typeof data === 'object') {
-                if (data.ok && cloudUser) cloudUser.profile = data.profile;
-                return data;
-            }
             if (error) throw error;
-        } catch (e) {
-            console.warn('[cloud] claim_username_v2 threw:', e && e.message);
-        }
 
-        // FALLBACK 2: RPC v1
-        try {
-            const { data, error } = await withFallbackTimeout(
-                sb.rpc('claim_username', {
-                    p_username: username,
-                    p_avatar: av,
-                    p_display_name: username
-                }),
-                9000,
-                { data: null, error: { message: 'timeout' } }
-            );
-            if (error) throw error;
-            if (data === true) {
-                if (cloudUser) cloudUser.profile = { username, avatar: av, display_name: username };
-                return { ok: true, profile: { username, avatar: av, display_name: username } };
-            }
-            return { ok: false, reason: 'taken_by_other' };
+            const profile = { id: uid, username, avatar: av, display_name: username };
+            if (cloudUser) cloudUser.profile = profile;
+            return { ok: true, profile };
         } catch (e) {
-            console.warn('[cloud] all claim attempts failed:', e && e.message);
+            if (isTimeoutError(e)) {
+                return { ok: false, reason: 'profile_timeout' };
+            }
+            if (e && (e.code === '23505' || /unique|duplicate/i.test(e.message || ''))) {
+                return { ok: false, reason: 'taken_by_other' };
+            }
+            console.warn('[cloud] profile upsert failed:', e && e.message);
             return { ok: false, reason: 'rpc_error', detail: e && e.message };
         }
     }
@@ -436,8 +392,9 @@
        Supabase auth wymaga email; fabrykujemy go z username i wewnetrznej
        domeny .invalid (ktora nigdy nie istnieje w prawdziwym DNS). Email
        opcjonalny do recovery jest TRZYMANY OBOK — w profile.email kolumna.
-       Anonimowy user moze upgrade'owac konto bez tracenia danych przez
-       updateUser({email, password}) — UID zostaje. */
+       Rejestracja tworzy normalne konto Auth od zera. Nie konwertujemy
+       anonimowego usera przez updateUser(), bo ten endpoint często wisi
+       przy ustawieniach email confirmation / SMTP w Supabase. */
     function syntheticEmailFor(username) {
         const safe = String(username).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
         return `${safe}@math-adv.invalid`;
@@ -478,7 +435,7 @@
         let timer;
         const timeoutPromise = new Promise((_, reject) => {
             timer = setTimeout(() => {
-                const err = new Error(`${label || 'Operacja'} — przekroczono czas (${ms}ms)`);
+                const err = new Error(`${label || 'Operacja'} trwa zbyt długo (${ms}ms)`);
                 err.code = 'CLIENT_TIMEOUT';
                 reject(err);
             }, ms);
@@ -488,7 +445,7 @@
     }
 
     function isTimeoutError(err) {
-        return !!(err && (err.code === 'CLIENT_TIMEOUT' || err.message === 'CLOUD_TIMEOUT' || /przekroczono czas/i.test(err.message || '')));
+        return !!(err && (err.code === 'CLIENT_TIMEOUT' || err.message === 'CLOUD_TIMEOUT' || /przekroczono czas|trwa zbyt długo/i.test(err.message || '')));
     }
 
     function sleep(ms) {
@@ -519,14 +476,16 @@
                 console.warn(`[cloud] ${label} timed out, recovered from local session`);
                 return { data: { user: recoveredUser }, error: null, recovered: true };
             }
-            throw e;
+            const err = new Error('Serwer logowania Supabase nie odpowiedział. Konto mogło już powstać — odśwież stronę i spróbuj się zalogować tą nazwą.');
+            err.code = 'AUTH_TIMEOUT';
+            throw err;
         }
     }
 
     /** Sign-up z verbose progress. onStep(text) opcjonalny callback do UI.
         Każdy krok ma własny timeout — żaden zawieszony request nie blokuje całego flow.
-        Pomijamy redundantny pre-check nazwy: cloudClaimUsername (RPC) jest atomowy,
-        a sb.auth.signUp/updateUser zwróci błąd duplikatu jeśli nazwa zajęta. */
+        Pomijamy redundantny pre-check nazwy: profile UPSERT zwróci błąd duplikatu
+        jeśli nazwa jest zajęta. */
     async function cloudSignUp(username, password, email, onStep) {
         const step = (text) => { if (onStep) onStep(text); };
         if (!cloudReady) throw new Error('Chmura niedostępna');
@@ -538,77 +497,62 @@
         const current = sessData && sessData.session && sessData.session.user;
 
         let resultUser;
-        // Recovery case: poprzednia próba utworzyła auth ale claim padł.
-        // Jeśli już jesteśmy zalogowani jako ten user (po emailu), pomiń tworzenie.
         const alreadyThisUser = current && !current.is_anonymous && current.email === synth;
 
         if (alreadyThisUser) {
             step('Wznawiam rezerwację (konto już istnieje)...');
             resultUser = current;
-        } else if (current && current.is_anonymous) {
-            step('Aktualizuję anonimowe konto (zachowuję wyniki)...');
-            const { data, error } = await authRequestWithRecovery(
-                sb.auth.updateUser({ email: synth, password }),
-                30000,
-                'updateUser',
-                (u) => !!(u && !u.is_anonymous && u.email === synth),
-                () => step('Supabase odpowiada wolno — sprawdzam czy konto już powstało...')
-            );
-            if (error) {
-                console.error('[cloud] updateUser error:', error);
-                if (/email.*already|registered|exists/i.test(error.message)) {
-                    throw new Error(`Nazwa "${username}" jest już zajęta. Wybierz inną lub zaloguj się.`);
-                }
-                if (/confirm/i.test(error.message)) {
-                    throw new Error('Konto wymaga potwierdzenia email — wyłącz "Confirm email" w Supabase Auth.');
-                }
-                throw new Error(error.message || 'Aktualizacja konta nie powiodła się');
-            }
-            resultUser = data && data.user;
-            if (!resultUser) {
-                throw new Error('Nie udało się potwierdzić utworzenia konta. Spróbuj ponownie za chwilę.');
-            }
-            if (resultUser && resultUser.is_anonymous) {
-                throw new Error('Konto wciąż anonimowe — wyłącz "Confirm email" w Supabase Auth → Email.');
-            }
         } else {
+            if (current && current.is_anonymous) {
+                step('Przygotowuję trwałe konto...');
+                await withRejectingTimeout(sb.auth.signOut({ scope: 'local' }), 5000, 'signOutAnon').catch((e) => {
+                    console.warn('[cloud] anonymous signOut skipped:', e && e.message);
+                });
+            }
+
             step('Tworzę nowe konto...');
             const { data, error } = await authRequestWithRecovery(
-                sb.auth.signUp({ email: synth, password }),
-                30000,
+                sb.auth.signUp({
+                    email: synth,
+                    password,
+                    options: { data: { username } }
+                }),
+                20000,
                 'signUp',
                 (u) => !!(u && !u.is_anonymous && u.email === synth),
-                () => step('Supabase odpowiada wolno — sprawdzam czy konto już powstało...')
+                () => step('Serwer logowania odpowiada wolno — sprawdzam sesję...')
             );
             if (error) {
                 console.error('[cloud] signUp error:', error);
                 if (/registered|exists|already/i.test(error.message)) {
-                    throw new Error(`Nazwa "${username}" jest już zajęta. Wybierz inną lub zaloguj się.`);
+                    step('Konto już istnieje — próbuję dokończyć logowanie...');
+                    const retry = await withRejectingTimeout(
+                        sb.auth.signInWithPassword({ email: synth, password }),
+                        10000,
+                        'signInExisting'
+                    );
+                    if (retry.error) {
+                        throw new Error(`Nazwa "${username}" jest już zajęta. Wybierz inną lub zaloguj się.`);
+                    }
+                    resultUser = retry.data && retry.data.user;
+                } else if (/confirm/i.test(error.message)) {
+                    throw new Error('Supabase wymaga potwierdzenia email. Wyłącz "Confirm email" w Authentication → Providers → Email.');
+                } else {
+                    throw new Error(error.message || 'Rejestracja nie powiodła się');
                 }
-                throw new Error(error.message || 'Rejestracja nie powiodła się');
+            } else {
+                resultUser = data && data.user;
             }
-            resultUser = data && data.user;
             if (!resultUser) {
-                throw new Error('Konto wymaga potwierdzenia email — wyłącz "Confirm email" w Supabase Auth.');
+                throw new Error('Supabase utworzył konto bez aktywnej sesji. Wyłącz "Confirm email" w Authentication → Providers → Email.');
+            }
+            if (resultUser.is_anonymous) {
+                throw new Error('Supabase zwrócił nadal konto anonimowe. Spróbuj ponownie albo sprawdź ustawienia Auth.');
             }
         }
 
-        step('Odświeżam sesję...');
-        await withRejectingTimeout(sb.auth.refreshSession(), 5000, 'refreshSession').catch((e) => {
-            console.warn('[cloud] refreshSession skipped:', e && e.message);
-        });
-
-        step('Rezerwuję nazwę...');
-        // Retry raz — pierwszy RPC po signUp często cold-startuje (2-5s),
-        // drugi przelatuje natychmiast.
-        let claim;
-        try {
-            claim = await withRejectingTimeout(cloudClaimUsername(username, user.avatar), 22000, 'claimUsername');
-        } catch (e) {
-            console.warn('[cloud] claimUsername first attempt failed, retrying:', e && e.message);
-            step('Rezerwuję nazwę (ponawiam)...');
-            claim = await withRejectingTimeout(cloudClaimUsername(username, user.avatar), 22000, 'claimUsername-retry');
-        }
+        step('Zapisuję profil...');
+        const claim = await cloudClaimUsername(username, user.avatar);
         if (!claim.ok) {
             const reason = claim.reason || 'unknown';
             const reasonText = {
@@ -616,6 +560,7 @@
                 not_authenticated: 'Brak sesji — odśwież stronę',
                 invalid_length: 'Nazwa musi mieć 2-20 znaków',
                 invalid_chars: 'Tylko litery, cyfry, _ i -',
+                profile_timeout: 'Konto logowania powstało, ale baza profili nie odpowiedziała. Odśwież stronę i zaloguj się tą nazwą.',
                 rpc_error: 'Błąd bazy: ' + (claim.detail || ''),
                 no_cloud: 'Brak połączenia z chmurą'
             }[reason] || `Nie udało się zarezerwować (${reason})`;
