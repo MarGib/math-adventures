@@ -2026,30 +2026,87 @@ body.game-active #screen-game .btn-container-bottom {
     z-index: 1;
 }
 
+/* SCOPE TABS — grid layout dla rownych komorek.
+   Mobile: 3 kolumny (2 rzedy x 3). Desktop: 6 kolumn (1 rzad). */
 .lb-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    background: rgba(255, 255, 255, 0.18);
-    padding: 3px;
-    border-radius: 20px;
-    backdrop-filter: blur(8px);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 5px;
+    background: rgba(255, 255, 255, 0.14);
+    padding: 5px;
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    width: 100%;
     max-width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+@media (min-width: 620px) {
+    .lb-tabs {
+        grid-template-columns: repeat(6, 1fr);
+    }
 }
 
 .lb-tab {
-    flex: 0 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.92);
+    padding: 9px 6px;
+    border-radius: 10px;
+    font-family: var(--f-display);
+    font-weight: 600;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.15s var(--ease-spring);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    letter-spacing: 0.1px;
+    line-height: 1;
 }
 
-/* Mobile — scroll horizontalny jezeli sie nie miesci */
-@media (max-width: 560px) {
-    .lb-tabs {
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        scrollbar-width: none;
+.lb-tab-ico { font-size: 14px; line-height: 1; }
+.lb-tab-txt { overflow: hidden; text-overflow: ellipsis; }
+
+.lb-tab:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+}
+
+.lb-tab:active {
+    transform: scale(0.97);
+}
+
+.lb-tab.active {
+    background: white;
+    color: var(--c-teal-dark);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.20);
+    font-weight: 700;
+}
+
+/* Phone — zmniejsz font/padding zeby dluzsze etykiety sie miescily */
+@media (max-width: 619px) {
+    .lb-tab {
+        padding: 8px 4px;
+        font-size: 11px;
+        gap: 3px;
+        letter-spacing: 0;
     }
-    .lb-tabs::-webkit-scrollbar { display: none; }
+    .lb-tab-ico { font-size: 12px; }
+}
+
+/* Bardzo waskie ekrany — schowaj tekst, zostaw tylko ikone */
+@media (max-width: 360px) {
+    .lb-tab { padding: 9px 4px; gap: 0; }
+    .lb-tab-txt { display: none; }
+    .lb-tab-ico { font-size: 18px; }
 }
 
 .lb-tab {
