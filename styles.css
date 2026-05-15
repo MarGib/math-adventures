@@ -2027,13 +2027,29 @@ body.game-active #screen-game .btn-container-bottom {
 }
 
 .lb-tabs {
-    display: inline-flex;
+    display: flex;
+    flex-wrap: wrap;
     gap: 4px;
     background: rgba(255, 255, 255, 0.18);
     padding: 3px;
-    border-radius: 999px;
-    width: max-content;
+    border-radius: 20px;
     backdrop-filter: blur(8px);
+    max-width: 100%;
+}
+
+.lb-tab {
+    flex: 0 1 auto;
+    white-space: nowrap;
+}
+
+/* Mobile — scroll horizontalny jezeli sie nie miesci */
+@media (max-width: 560px) {
+    .lb-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .lb-tabs::-webkit-scrollbar { display: none; }
 }
 
 .lb-tab {

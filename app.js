@@ -3463,10 +3463,16 @@
     }
 
     function bindClickHandlers() {
-        document.querySelectorAll('[data-action]').forEach((el) => {
+        // EVENT DELEGATION na document — lapie klikniecia na WSZYSTKICH
+        // elementach z [data-action], wlacznie z tymi tworzonymi dynamicznie
+        // (sub-taby rankings, listy generated po fetch z chmury, itd.).
+        document.addEventListener('click', (ev) => {
+            const el = ev.target.closest('[data-action]');
+            if (!el) return;
             const action = el.dataset.action;
             const arg = el.dataset.arg;
-            el.addEventListener('click', (ev) => {
+            // Wrapping w "ev" object zeby switch-case nizej dzialal bez zmian
+            const handle = (ev) => {
                 switch (action) {
                     case 'goToSetup': goToSetup(); break;
                     case 'showLeaderboard': showLeaderboard(); break;
@@ -3540,7 +3546,8 @@
                 if (['showLeaderboard','showAccount','showHowto','showSettings'].includes(action)) {
                     closeNavMenu();
                 }
-            });
+            };
+            handle(ev);
         });
     }
 
