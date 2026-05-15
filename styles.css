@@ -2017,6 +2017,10 @@ body.game-active #screen-game .btn-container-bottom {
 }
 
 /* Leaderboard controls */
+#modal-leaderboard .modal-card {
+    max-width: min(980px, calc(100vw - 32px));
+}
+
 .lb-subtitle {
     margin: 8px 0 0;
     color: rgba(255, 255, 255, 0.82);
@@ -2034,7 +2038,8 @@ body.game-active #screen-game .btn-container-bottom {
 
 .lb-control-group {
     display: grid;
-    gap: 7px;
+    justify-items: center;
+    gap: 8px;
     padding: 10px;
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 16px;
@@ -2045,60 +2050,59 @@ body.game-active #screen-game .btn-container-bottom {
 }
 
 .lb-control-label {
+    width: 100%;
     color: rgba(255, 255, 255, 0.76);
     font-family: var(--f-head);
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.08em;
     line-height: 1;
+    text-align: center;
     text-transform: uppercase;
 }
 
 .lb-tabs,
 .lb-filters {
-    display: grid;
-    gap: 7px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
     width: 100%;
-}
-
-.lb-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.lb-filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .lb-tab,
 .lb-filter {
     min-width: 0;
-    min-height: 44px;
+    min-height: 42px;
     border: 1px solid rgba(255, 255, 255, 0.20);
-    border-radius: 12px;
+    border-radius: 999px;
     background: rgba(255, 255, 255, 0.11);
     color: rgba(255, 255, 255, 0.94);
     cursor: pointer;
     font-family: var(--f-display);
     font-size: 13px;
-    font-weight: 700;
-    line-height: 1.1;
+    font-weight: 750;
+    line-height: 1;
+    white-space: nowrap;
     transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, transform 0.15s var(--ease-spring);
 }
 
 .lb-tab {
-    display: flex;
+    flex: 0 1 128px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    padding: 9px 8px;
+    padding: 10px 14px;
 }
 
 .lb-filter {
+    flex: 0 1 118px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 9px 10px;
+    padding: 10px 13px;
 }
 
 .lb-tab-ico,
@@ -2110,8 +2114,9 @@ body.game-active #screen-game .btn-container-bottom {
 
 .lb-tab-txt,
 .lb-filter span:last-child {
+    display: inline-block;
     min-width: 0;
-    overflow-wrap: anywhere;
+    text-align: center;
 }
 
 .lb-tab:hover,
@@ -2133,33 +2138,32 @@ body.game-active #screen-game .btn-container-bottom {
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
 }
 
-@media (min-width: 720px) {
+@media (min-width: 760px) {
     .lb-controls {
-        grid-template-columns: minmax(0, 1.12fr) minmax(260px, 0.88fr);
+        grid-template-columns: 1fr 1fr;
         align-items: start;
-    }
-
-    .lb-tabs {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
-    .lb-filters {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }
 
-@media (min-width: 1040px) {
+@media (min-width: 1060px) {
     .lb-controls {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .lb-tabs,
-    .lb-filters {
-        grid-template-columns: repeat(6, minmax(0, 1fr));
+    .lb-tab {
+        flex-basis: 136px;
+    }
+
+    .lb-filter {
+        flex-basis: 128px;
     }
 }
 
 @media (max-width: 520px) {
+    #modal-leaderboard .modal-card {
+        max-width: calc(100vw - 24px);
+    }
+
     .lb-subtitle {
         font-size: 12px;
     }
@@ -2169,30 +2173,39 @@ body.game-active #screen-game .btn-container-bottom {
         border-radius: 14px;
     }
 
-    .lb-tabs {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-
+    .lb-tabs,
     .lb-filters {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .lb-tab,
-    .lb-filter {
-        min-height: 42px;
-        border-radius: 11px;
-        font-size: 11.5px;
-        padding: 8px 5px;
-        gap: 4px;
+        gap: 7px;
     }
 
     .lb-tab {
+        flex: 1 1 calc(33.333% - 7px);
+        min-height: 48px;
+        border-radius: 14px;
         flex-direction: column;
+        gap: 4px;
+        padding: 8px 5px;
+        font-size: 11.5px;
+    }
+
+    .lb-filter {
+        flex: 1 1 calc(50% - 7px);
+        min-height: 42px;
+        border-radius: 12px;
+        padding: 8px 6px;
+        font-size: 12px;
     }
 
     .lb-tab-ico,
     .lb-filter-ico {
         font-size: 16px;
+    }
+}
+
+@media (max-width: 340px) {
+    .lb-tab,
+    .lb-filter {
+        font-size: 11px;
     }
 }
 
