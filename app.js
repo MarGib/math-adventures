@@ -846,6 +846,54 @@
         { cat: 'Symbole',      emoji: '🎁', kw: 'prezent' },
     ];
 
+    let editProfileAvatar = null;
+
+    function syncAvatarSelection(emoji) {
+        const selected = emoji || user.avatar || '🦉';
+        document.querySelectorAll('.avatar-option').forEach(el => {
+            el.classList.toggle('selected', el.textContent.trim() === selected);
+        });
+        const current = document.getElementById('avatar-current');
+        if (current) current.textContent = selected;
+        const display = document.getElementById('current-avatar-display');
+        if (display) display.textContent = selected;
+        const welcomeAvatar = document.getElementById('welcome-avatar');
+        if (welcomeAvatar) welcomeAvatar.textContent = selected;
+        const gameAvatar = document.getElementById('game-avatar');
+        if (gameAvatar) gameAvatar.textContent = selected;
+        const onlineAvatar = document.getElementById('acc-online-avatar');
+        if (onlineAvatar) onlineAvatar.textContent = selected;
+    }
+
+    function renderAccountAvatarPicker(containerId, selectedEmoji, actionName) {
+        const row = document.getElementById(containerId);
+        if (!row) return;
+        const selected = selectedEmoji || user.avatar || '🦉';
+        row.innerHTML = '';
+        avatarLibrary.forEach((av) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'acc-avatar-btn' + (av.emoji === selected ? ' is-selected' : '');
+            btn.textContent = av.emoji;
+            btn.dataset.action = actionName;
+            btn.dataset.avatar = av.emoji;
+            btn.title = av.kw.split(' ')[0];
+            btn.setAttribute('role', 'radio');
+            btn.setAttribute('aria-checked', av.emoji === selected ? 'true' : 'false');
+            row.appendChild(btn);
+        });
+    }
+
+    function selectAccountAvatar(containerId, emoji) {
+        const row = document.getElementById(containerId);
+        if (!row) return;
+        row.querySelectorAll('.acc-avatar-btn').forEach(btn => {
+            const selected = btn.dataset.avatar === emoji;
+            btn.classList.toggle('is-selected', selected);
+            btn.setAttribute('aria-checked', selected ? 'true' : 'false');
+        });
+    }
+
     // 30 pozytywnych cytatów po trafionej odpowiedzi.
     const cheers = [
         "Świetnie!",
@@ -1369,6 +1417,7 @@
             if (localName && !nameInput.value) nameInput.value = localName;
             if (signinNameInput && localName && !signinNameInput.value) signinNameInput.value = localName;
         }
+        renderAccountAvatarPicker('acc-signup-avatars', user.avatar, 'chooseSignupAvatar');
 
         renderAccountModal();
         modal.style.display = 'flex';
@@ -1533,6 +1582,9 @@
             const el = document.getElementById('acc-tab-' + t);
             if (el) el.style.display = (t === name ? 'flex' : 'none');
         });
+        if (name === 'signup') {
+            renderAccountAvatarPicker('acc-signup-avatars', user.avatar, 'chooseSignupAvatar');
+        }
     }
 
     function setAccStatus(id, text, kind) {
@@ -1549,6 +1601,19 @@
             input.value = name;
             input.focus();
         }
+    }
+
+    function chooseSignupAvatar(emoji) {
+        if (!emoji) return;
+        user.avatar = emoji;
+        selectAccountAvatar('acc-signup-avatars', emoji);
+        syncAvatarSelection(emoji);
+    }
+
+    function chooseProfileAvatar(emoji) {
+        if (!emoji) return;
+        editProfileAvatar = emoji;
+        selectAccountAvatar('ep-avatars', emoji);
     }
 
     async function accountSignUp() {
@@ -2510,6 +2575,8 @@
                 status.className = 'acc-status is-shown is-info';
                 status.textContent = 'Najpierw stwórz trwałe konto (Konto → Stwórz konto). Wtedy możesz wypełnić profil.';
             }
+            editProfileAvatar = user.avatar || '🦉';
+            renderAccountAvatarPicker('ep-avatars', editProfileAvatar, 'chooseProfileAvatar');
             ['ep-school','ep-class','ep-city','ep-journal'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.value = '';
@@ -2529,12 +2596,14 @@
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
+        editProfileAvatar = (cloudUser.profile && cloudUser.profile.avatar) || user.avatar || '🦉';
+        renderAccountAvatarPicker('ep-avatars', editProfileAvatar, 'chooseProfileAvatar');
         modal.style.display = 'flex';
 
         try {
             const { data, error } = await withFallbackTimeout(
                 sb.from('profiles')
-                    .select('school, class_name, city, journal_no')
+                    .select('school, class_name, city, journal_no, avatar')
                     .eq('id', cloudUser.id)
                     .maybeSingle(),
                 5000,
@@ -2542,12 +2611,15 @@
             );
             if (error) throw error;
             const p = data || {};
+            editProfileAvatar = p.avatar || editProfileAvatar;
+            renderAccountAvatarPicker('ep-avatars', editProfileAvatar, 'chooseProfileAvatar');
             // Update cache zeby zostal w sync
             if (cloudUser.profile) {
                 cloudUser.profile.school = p.school || null;
                 cloudUser.profile.class_name = p.class_name || null;
                 cloudUser.profile.city = p.city || null;
                 cloudUser.profile.journal_no = p.journal_no || null;
+                cloudUser.profile.avatar = p.avatar || cloudUser.profile.avatar || user.avatar;
             }
             document.getElementById('ep-school').value = p.school || '';
             document.getElementById('ep-class').value = p.class_name || '';
@@ -2558,6 +2630,8 @@
             console.warn('[edit-profile] read failed', e && e.message);
             // Fallback do cache
             const p = (cloudUser && cloudUser.profile) || {};
+            editProfileAvatar = p.avatar || editProfileAvatar || user.avatar || '🦉';
+            renderAccountAvatarPicker('ep-avatars', editProfileAvatar, 'chooseProfileAvatar');
             document.getElementById('ep-school').value = p.school || '';
             document.getElementById('ep-class').value = p.class_name || '';
             document.getElementById('ep-city').value = p.city || '';
@@ -2599,17 +2673,22 @@
 
         setStatus('⏳ Zapisuję...', 'info');
         try {
+            const avatar = editProfileAvatar || user.avatar || '🦉';
             const result = await cloudUpdateProfile({
                 school, class_name: className, city, journal_no: journal,
-                avatar: user.avatar
+                avatar
             });
+            user.avatar = avatar;
+            if (cloudUser && cloudUser.profile) cloudUser.profile.avatar = avatar;
+            syncAvatarSelection(avatar);
             console.info('[edit-profile] saved:', result && result.profile);
             // Werifikacja: fresh read po zapisie
             const { data: verify } = await sb.from('profiles')
-                .select('school, class_name, city, journal_no')
+                .select('school, class_name, city, journal_no, avatar')
                 .eq('id', cloudUser.id)
                 .maybeSingle();
             console.info('[edit-profile] verify after save:', verify);
+            saveLastUser();
             setStatus('✓ Profil zapisany', 'good');
             renderWelcomeBack();
             setTimeout(() => closeEditProfile(), 1200);
@@ -3459,12 +3538,13 @@
                 btn.classList.add('selected');
                 const emoji = btn.textContent.trim();
                 user.avatar = emoji;
-                const current = document.getElementById('avatar-current');
-                if (current) current.textContent = emoji;
+                syncAvatarSelection(emoji);
+                saveLastUser();
                 // Cloud sync wybranego avatara (best effort)
                 if (cloudReady && cloudUser && cloudUser.profile) {
                     sb.from('profiles').update({ avatar: emoji }).eq('id', cloudUser.id).then(() => {
                         if (cloudUser && cloudUser.profile) cloudUser.profile.avatar = emoji;
+                        renderAccountAvatarPicker('ep-avatars', emoji, 'chooseProfileAvatar');
                     }).catch(() => {});
                 }
             });
@@ -3539,6 +3619,8 @@
                     case 'accountSignUp': accountSignUp(); break;
                     case 'accountSignIn': accountSignIn(); break;
                     case 'accountSignOut': accountSignOut(); break;
+                    case 'chooseSignupAvatar': chooseSignupAvatar(el.dataset.avatar); break;
+                    case 'chooseProfileAvatar': chooseProfileAvatar(el.dataset.avatar); break;
                     case 'askLogoutLocal': askLogoutLocal(); break;
                     case 'askLogoutGlobal': askLogoutGlobal(); break;
                     case 'doLogoutConfirmed': doLogoutConfirmed(); break;
