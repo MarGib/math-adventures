@@ -121,6 +121,7 @@
                             </button>
                             <div class="wh-links">
                                 <button class="link-btn" type="button" data-action="showEditProfile">✏️ Profil</button>
+                                <button class="link-btn admin-only" type="button" data-action="showAdminPanel" style="display:none;">🛠️ Admin</button>
                                 <button class="link-btn" type="button" data-action="welcomeChange">↺ Inny gracz</button>
                             </div>
                         </div>
@@ -758,8 +759,28 @@
 
                 <label class="acc-field">
                     <span class="acc-label">Szkoła <span class="acc-hint">(opcjonalne)</span></span>
-                    <input type="text" id="ep-school" maxlength="80" placeholder="np. Szkoła Podstawowa nr 1">
+                    <select id="ep-school-id">
+                        <option value="">Bez szkoły</option>
+                    </select>
+                    <span class="acc-hint">Wybierz szkołę z zatwierdzonej listy, żeby rankingi były spójne.</span>
                 </label>
+
+                <div class="school-request-card">
+                    <div class="school-request-head">
+                        <strong>Nie ma Twojej szkoły?</strong>
+                        <span>Zgłoś ją do dodania przez administratora.</span>
+                    </div>
+                    <div class="school-request-grid">
+                        <label class="acc-field">
+                            <span class="acc-label">Nazwa szkoły</span>
+                            <input type="text" id="ep-school-request-name" maxlength="120" placeholder="np. Szkoła Podstawowa nr 1">
+                        </label>
+                        <label class="acc-field">
+                            <span class="acc-label">Miasto</span>
+                            <input type="text" id="ep-school-request-city" maxlength="80" placeholder="np. Warszawa">
+                        </label>
+                    </div>
+                </div>
 
                 <div class="ep-row">
                     <label class="acc-field" style="flex: 1;">
@@ -786,6 +807,68 @@
             <div class="modal-footer">
                 <div class="modal-btn-row">
                     <button class="btn-big btn-secondary" type="button" data-action="closeEditProfile">Zamknij</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-admin" class="modal-overlay">
+        <div class="modal-card admin-modal-card">
+            <div class="modal-header">
+                <button class="modal-close" type="button" data-action="closeAdminPanel" aria-label="Zamknij panel admina">×</button>
+                <h2>Panel admina</h2>
+                <p style="margin: 6px 0 0; color: rgba(255,255,255,0.85); font-weight: 600; font-size: 13px;">Szkoły, zgłoszenia i pomoc z kontami</p>
+            </div>
+            <div class="modal-body">
+                <section class="admin-section">
+                    <div class="admin-section-head">
+                        <h3>Zgłoszenia szkół</h3>
+                        <button class="btn-small" type="button" data-action="adminRefreshSchools">Odśwież</button>
+                    </div>
+                    <div id="admin-school-requests" class="admin-list">
+                        <div class="admin-empty">Wczytywanie...</div>
+                    </div>
+                </section>
+
+                <section class="admin-section">
+                    <div class="admin-section-head">
+                        <h3>Dodaj szkołę ręcznie</h3>
+                    </div>
+                    <div class="admin-form-grid">
+                        <label class="acc-field">
+                            <span class="acc-label">Nazwa szkoły</span>
+                            <input type="text" id="admin-school-name" maxlength="120" placeholder="np. Szkoła Podstawowa nr 1">
+                        </label>
+                        <label class="acc-field">
+                            <span class="acc-label">Miasto</span>
+                            <input type="text" id="admin-school-city" maxlength="80" placeholder="np. Warszawa">
+                        </label>
+                    </div>
+                    <button class="btn-big" type="button" data-action="adminCreateSchool">Dodaj szkołę</button>
+                </section>
+
+                <section class="admin-section">
+                    <div class="admin-section-head">
+                        <h3>Reset hasła</h3>
+                    </div>
+                    <div class="admin-form-grid">
+                        <label class="acc-field">
+                            <span class="acc-label">Nazwa gracza</span>
+                            <input type="text" id="admin-reset-username" maxlength="24" placeholder="np. MarGib">
+                        </label>
+                        <label class="acc-field">
+                            <span class="acc-label">Nowe hasło</span>
+                            <input type="password" id="admin-reset-password" minlength="6" maxlength="64" placeholder="min. 6 znaków">
+                        </label>
+                    </div>
+                    <button class="btn-big btn-secondary" type="button" data-action="adminResetPassword">Ustaw nowe hasło</button>
+                </section>
+
+                <div id="admin-status" class="acc-status"></div>
+            </div>
+            <div class="modal-footer">
+                <div class="modal-btn-row">
+                    <button class="btn-big btn-secondary" type="button" data-action="closeAdminPanel">Zamknij</button>
                 </div>
             </div>
         </div>
@@ -838,6 +921,7 @@
                         </div>
                     </div>
                     <button class="btn-big btn-secondary acc-edit-profile-btn" type="button" data-action="showEditProfile">✏️ Edytuj profil</button>
+                    <button class="btn-big btn-secondary acc-admin-btn admin-only" type="button" data-action="showAdminPanel" style="display:none;">🛠️ Panel admina</button>
 
                     <!-- Logout zone -->
                     <div class="acc-logout-zone">

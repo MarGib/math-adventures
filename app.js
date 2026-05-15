@@ -37,6 +37,7 @@
     let sb = null;            // klient Supabase
     let cloudUser = null;     // { id, username, avatar }
     let cloudReady = false;   // true gdy uda sie auth + profile load
+    let schoolOptionsCache = [];
 
     async function initCloud() {
         if (!CLOUD_ENABLED) return;
@@ -71,6 +72,7 @@
             sb.auth.onAuthStateChange(async () => {
                 await refreshCloudUser();
                 updateCloudStatusPill();
+                updateAdminVisibility();
             });
         } catch (e) {
             console.warn('[cloud] init failed, going offline-only:', e && e.message);
@@ -354,7 +356,7 @@
     /** Rankingi agregowane: top szkół / klas / miast. */
     async function cloudFetchRanking(kind, limit) {
         if (!cloudReady) return [];
-        const view = { schools: 'ranking_schools', classes: 'ranking_classes', cities: 'ranking_cities' }[kind];
+        const view = { schools: 'leaderboard_schools', classes: 'leaderboard_classes', cities: 'leaderboard_cities' }[kind];
         if (!view) return [];
         try {
             const { data, error } = await sb.from(view).select('*').limit(limit || 20);
@@ -366,18 +368,47 @@
         }
     }
 
+    async function cloudFetchSchools(force) {
+        if (!cloudReady || !sb) return [];
+        if (!force && schoolOptionsCache.length) return schoolOptionsCache;
+        try {
+            const { data, error } = await withFallbackTimeout(
+                sb.from('schools')
+                    .select('id, name, city')
+                    .eq('status', 'active')
+                    .order('name', { ascending: true }),
+                5000,
+                { data: [], error: { message: 'timeout' } }
+            );
+            if (error) throw error;
+            schoolOptionsCache = data || [];
+            return schoolOptionsCache;
+        } catch (e) {
+            console.warn('[cloud] fetch schools failed', e && e.message);
+            return schoolOptionsCache;
+        }
+    }
+
+    function schoolLabel(school) {
+        if (!school) return '';
+        return school.city ? `${school.name} (${school.city})` : school.name;
+    }
+
     /** Update profilu (school/class/city/journal/avatar) przez RPC. */
     async function cloudUpdateProfile(fields) {
         if (!cloudReady) throw new Error('Brak połączenia z chmurą');
         if (!cloudUser || !cloudUser._persistent) {
             throw new Error('Najpierw stwórz konto trwałe (Konto → Stwórz konto)');
         }
-        const { data, error } = await sb.rpc('update_profile_extras', {
-            p_school: fields.school || null,
+        const { data, error } = await sb.rpc('update_profile_extras_v2', {
+            p_school_id: fields.school_id || null,
+            p_school_request_name: fields.school_request_name || null,
+            p_school_request_city: fields.school_request_city || null,
             p_class_name: fields.class_name || null,
             p_city: fields.city || null,
             p_journal_no: fields.journal_no || null,
             p_avatar: fields.avatar || null,
+            p_clear_school: !!fields.clear_school,
         });
         if (error) throw error;
         if (!data || !data.ok) {
@@ -385,7 +416,7 @@
             throw new Error('Walidacja: ' + errs.join(', '));
         }
         await refreshCloudUser();
-        return cloudUser;
+        return data;
     }
 
     /* ---- Auth: username + password (synthetic email) ----
@@ -409,6 +440,18 @@
         return !!(cloudUser && cloudUser.profile && cloudUser._persistent);
     }
 
+    function isAdminUser() {
+        const username = cloudUser && cloudUser._persistent && cloudUser.profile && cloudUser.profile.username;
+        return !!(username && String(username).trim().toLowerCase() === 'margib');
+    }
+
+    function updateAdminVisibility() {
+        const show = isAdminUser();
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.style.display = show ? '' : 'none';
+        });
+    }
+
     async function refreshCloudUser() {
         if (!sb) return;
         try {
@@ -416,7 +459,7 @@
             if (!u) { cloudUser = null; return; }
             const { data: profile } = await sb
                 .from('profiles')
-                .select('id, username, avatar, display_name, email, school, class_name, city, journal_no')
+                .select('id, username, avatar, display_name, email, school, school_id, class_name, city, journal_no')
                 .eq('id', u.id)
                 .maybeSingle();
             cloudUser = {
@@ -425,6 +468,7 @@
                 _persistent: !u.is_anonymous,
                 _email: u.email
             };
+            updateAdminVisibility();
         } catch (e) {
             console.warn('[cloud] refreshCloudUser failed', e && e.message);
         }
@@ -1464,6 +1508,7 @@
 
         if (activeView === 'online') populateAccountOnlineView();
         if (activeView === 'anon') accountTab('signin'); // Domyślnie LOGIN — większość wracających ma już konto
+        updateAdminVisibility();
     }
 
     function populateAccountOnlineView() {
@@ -2208,6 +2253,7 @@
         document.body.classList.add('has-returning-user');
         // Wypełnij mini-statystyki w welcome hero card
         renderWelcomeStats(last.name);
+        updateAdminVisibility();
     }
 
     function renderWelcomeStats(playerName) {
@@ -2559,6 +2605,50 @@
     }
 
     /* ---- EDIT PROFILE modal ---- */
+    function clearEditProfileFields() {
+        ['ep-class','ep-city','ep-journal','ep-school-request-name','ep-school-request-city'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        const select = document.getElementById('ep-school-id');
+        if (select) {
+            select.innerHTML = '<option value="">Bez szkoły</option>';
+            select.value = '';
+            select.dataset.originalSchoolId = '';
+            select.dataset.legacySchool = '';
+        }
+    }
+
+    async function populateSchoolSelect(selectedSchoolId, legacySchoolName) {
+        const select = document.getElementById('ep-school-id');
+        if (!select) return;
+        select.innerHTML = '<option value="">Bez szkoły</option>';
+        select.dataset.originalSchoolId = selectedSchoolId || '';
+        select.dataset.legacySchool = legacySchoolName || '';
+
+        const schools = await cloudFetchSchools();
+        schools.forEach(school => {
+            const option = document.createElement('option');
+            option.value = school.id;
+            option.textContent = schoolLabel(school);
+            select.appendChild(option);
+        });
+
+        if (selectedSchoolId && schools.some(s => s.id === selectedSchoolId)) {
+            select.value = selectedSchoolId;
+            return;
+        }
+
+        if (legacySchoolName) {
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = `Aktualnie: ${legacySchoolName} (wybierz z listy)`;
+            option.disabled = true;
+            option.selected = true;
+            select.insertBefore(option, select.firstChild);
+        }
+    }
+
     async function showEditProfile() {
         const modal = document.getElementById('modal-edit-profile');
         if (!modal) return;
@@ -2577,10 +2667,7 @@
             }
             editProfileAvatar = user.avatar || '🦉';
             renderAccountAvatarPicker('ep-avatars', editProfileAvatar, 'chooseProfileAvatar');
-            ['ep-school','ep-class','ep-city','ep-journal'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
+            clearEditProfileFields();
             modal.style.display = 'flex';
             return;
         }
@@ -2592,10 +2679,7 @@
             status.className = 'acc-status is-shown is-info';
             status.textContent = '⏳ Wczytuję profil...';
         }
-        ['ep-school','ep-class','ep-city','ep-journal'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-        });
+        clearEditProfileFields();
         editProfileAvatar = (cloudUser.profile && cloudUser.profile.avatar) || user.avatar || '🦉';
         renderAccountAvatarPicker('ep-avatars', editProfileAvatar, 'chooseProfileAvatar');
         modal.style.display = 'flex';
@@ -2603,7 +2687,7 @@
         try {
             const { data, error } = await withFallbackTimeout(
                 sb.from('profiles')
-                    .select('school, class_name, city, journal_no, avatar')
+                    .select('school, school_id, class_name, city, journal_no, avatar')
                     .eq('id', cloudUser.id)
                     .maybeSingle(),
                 5000,
@@ -2616,12 +2700,13 @@
             // Update cache zeby zostal w sync
             if (cloudUser.profile) {
                 cloudUser.profile.school = p.school || null;
+                cloudUser.profile.school_id = p.school_id || null;
                 cloudUser.profile.class_name = p.class_name || null;
                 cloudUser.profile.city = p.city || null;
                 cloudUser.profile.journal_no = p.journal_no || null;
                 cloudUser.profile.avatar = p.avatar || cloudUser.profile.avatar || user.avatar;
             }
-            document.getElementById('ep-school').value = p.school || '';
+            await populateSchoolSelect(p.school_id || null, p.school || '');
             document.getElementById('ep-class').value = p.class_name || '';
             document.getElementById('ep-city').value = p.city || '';
             document.getElementById('ep-journal').value = p.journal_no || '';
@@ -2632,7 +2717,7 @@
             const p = (cloudUser && cloudUser.profile) || {};
             editProfileAvatar = p.avatar || editProfileAvatar || user.avatar || '🦉';
             renderAccountAvatarPicker('ep-avatars', editProfileAvatar, 'chooseProfileAvatar');
-            document.getElementById('ep-school').value = p.school || '';
+            await populateSchoolSelect(p.school_id || null, p.school || '');
             document.getElementById('ep-class').value = p.class_name || '';
             document.getElementById('ep-city').value = p.city || '';
             document.getElementById('ep-journal').value = p.journal_no || '';
@@ -2656,7 +2741,12 @@
             status.className = 'acc-status is-shown' + (kind ? ' is-' + kind : '');
         };
 
-        const school = document.getElementById('ep-school').value.trim();
+        const schoolId = (document.getElementById('ep-school-id') && document.getElementById('ep-school-id').value) || '';
+        const schoolSelect = document.getElementById('ep-school-id');
+        const selectedSchoolOption = schoolSelect && schoolSelect.options[schoolSelect.selectedIndex];
+        const clearSchool = !!(schoolSelect && !schoolId && selectedSchoolOption && !selectedSchoolOption.disabled && (schoolSelect.dataset.originalSchoolId || schoolSelect.dataset.legacySchool));
+        const schoolRequestName = (document.getElementById('ep-school-request-name') && document.getElementById('ep-school-request-name').value.trim()) || '';
+        const schoolRequestCity = (document.getElementById('ep-school-request-city') && document.getElementById('ep-school-request-city').value.trim()) || '';
         const className = document.getElementById('ep-class').value.trim();
         const city = document.getElementById('ep-city').value.trim();
         const journalRaw = document.getElementById('ep-journal').value.trim();
@@ -2670,12 +2760,22 @@
             setStatus('Nr w dzienniku: 1-99', 'bad');
             return;
         }
+        if (schoolRequestName && schoolRequestName.length < 3) {
+            setStatus('Nazwa zgłaszanej szkoły musi mieć co najmniej 3 znaki', 'bad');
+            return;
+        }
 
         setStatus('⏳ Zapisuję...', 'info');
         try {
             const avatar = editProfileAvatar || user.avatar || '🦉';
             const result = await cloudUpdateProfile({
-                school, class_name: className, city, journal_no: journal,
+                school_id: schoolId,
+                school_request_name: schoolRequestName,
+                school_request_city: schoolRequestCity,
+                clear_school: clearSchool,
+                class_name: className,
+                city,
+                journal_no: journal,
                 avatar
             });
             user.avatar = avatar;
@@ -2684,16 +2784,174 @@
             console.info('[edit-profile] saved:', result && result.profile);
             // Werifikacja: fresh read po zapisie
             const { data: verify } = await sb.from('profiles')
-                .select('school, class_name, city, journal_no, avatar')
+                .select('school, school_id, class_name, city, journal_no, avatar')
                 .eq('id', cloudUser.id)
                 .maybeSingle();
             console.info('[edit-profile] verify after save:', verify);
             saveLastUser();
-            setStatus('✓ Profil zapisany', 'good');
+            if (schoolRequestName) {
+                const reqName = document.getElementById('ep-school-request-name');
+                const reqCity = document.getElementById('ep-school-request-city');
+                if (reqName) reqName.value = '';
+                if (reqCity) reqCity.value = '';
+                setStatus('✓ Profil zapisany, a szkoła trafiła do akceptacji', 'good');
+            } else {
+                setStatus('✓ Profil zapisany', 'good');
+            }
             renderWelcomeBack();
             setTimeout(() => closeEditProfile(), 1200);
         } catch (e) {
             setStatus('⚠ ' + (e.message || 'Nie udało się zapisać'), 'bad');
+        }
+    }
+
+    function setAdminStatus(text, kind) {
+        const status = document.getElementById('admin-status');
+        if (!status) return;
+        status.textContent = text || '';
+        status.className = text ? ('acc-status is-shown' + (kind ? ' is-' + kind : '')) : 'acc-status';
+    }
+
+    function requireAdminPanelAccess() {
+        if (isAdminUser()) return true;
+        showAlert('Brak dostępu', 'Panel admina jest dostępny tylko dla konta MarGib.', '🛡️');
+        return false;
+    }
+
+    async function showAdminPanel() {
+        if (!requireAdminPanelAccess()) return;
+        const accModal = document.getElementById('modal-account');
+        if (accModal) accModal.style.display = 'none';
+        const modal = document.getElementById('modal-admin');
+        if (modal) modal.style.display = 'flex';
+        await renderAdminSchoolRequests();
+    }
+
+    function closeAdminPanel() {
+        const modal = document.getElementById('modal-admin');
+        if (modal) modal.style.display = 'none';
+        setAdminStatus('', '');
+    }
+
+    async function renderAdminSchoolRequests() {
+        const list = document.getElementById('admin-school-requests');
+        if (!list) return;
+        if (!requireAdminPanelAccess()) return;
+        list.innerHTML = '<div class="admin-empty">Wczytywanie...</div>';
+        try {
+            const { data, error } = await sb.rpc('admin_get_school_requests');
+            if (error) throw error;
+            const rows = data || [];
+            if (!rows.length) {
+                list.innerHTML = '<div class="admin-empty">Brak oczekujących zgłoszeń.</div>';
+                return;
+            }
+            list.innerHTML = rows.map(row => {
+                const city = row.requested_city ? ` · ${escapeHtml(row.requested_city)}` : '';
+                const userName = row.requester_username ? escapeHtml(row.requester_username) : 'nieznany gracz';
+                const date = row.created_at ? new Date(row.created_at).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '';
+                return `
+                    <div class="admin-request">
+                        <div>
+                            <p class="admin-request-title">${escapeHtml(row.requested_name)}${city}</p>
+                            <div class="admin-request-meta">Zgłosił: ${userName}${date ? ` · ${escapeHtml(date)}` : ''}</div>
+                        </div>
+                        <div class="admin-request-actions">
+                            <button class="btn-small" type="button" data-action="adminApproveSchoolRequest" data-id="${row.id}">Zatwierdź</button>
+                            <button class="btn-small" type="button" data-action="adminRejectSchoolRequest" data-id="${row.id}">Odrzuć</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (e) {
+            console.warn('[admin] school requests failed', e && e.message);
+            list.innerHTML = '<div class="admin-empty">Nie udało się wczytać zgłoszeń.</div>';
+        }
+    }
+
+    async function adminApproveSchoolRequest(requestId) {
+        if (!requestId || !requireAdminPanelAccess()) return;
+        setAdminStatus('⏳ Zatwierdzam szkołę...', 'info');
+        try {
+            const { data, error } = await sb.rpc('admin_approve_school_request', {
+                p_request_id: requestId
+            });
+            if (error) throw error;
+            if (!data || !data.ok) throw new Error((data && data.reason) || 'Nie udało się zatwierdzić');
+            schoolOptionsCache = [];
+            setAdminStatus('✓ Szkoła zatwierdzona i przypisana zgłaszającemu graczowi', 'good');
+            await renderAdminSchoolRequests();
+        } catch (e) {
+            setAdminStatus('⚠ ' + (e.message || 'Nie udało się zatwierdzić'), 'bad');
+        }
+    }
+
+    async function adminRejectSchoolRequest(requestId) {
+        if (!requestId || !requireAdminPanelAccess()) return;
+        setAdminStatus('⏳ Odrzucam zgłoszenie...', 'info');
+        try {
+            const { data, error } = await sb.rpc('admin_reject_school_request', {
+                p_request_id: requestId,
+                p_note: 'Odrzucone w panelu admina'
+            });
+            if (error) throw error;
+            if (!data || !data.ok) throw new Error((data && data.reason) || 'Nie udało się odrzucić');
+            setAdminStatus('✓ Zgłoszenie odrzucone', 'good');
+            await renderAdminSchoolRequests();
+        } catch (e) {
+            setAdminStatus('⚠ ' + (e.message || 'Nie udało się odrzucić'), 'bad');
+        }
+    }
+
+    async function adminCreateSchool() {
+        if (!requireAdminPanelAccess()) return;
+        const nameEl = document.getElementById('admin-school-name');
+        const cityEl = document.getElementById('admin-school-city');
+        const name = nameEl ? nameEl.value.trim() : '';
+        const city = cityEl ? cityEl.value.trim() : '';
+        if (name.length < 3) {
+            setAdminStatus('Nazwa szkoły musi mieć co najmniej 3 znaki', 'bad');
+            return;
+        }
+        setAdminStatus('⏳ Dodaję szkołę...', 'info');
+        try {
+            const { data, error } = await sb.rpc('admin_create_school', {
+                p_school_name: name,
+                p_school_city: city || null
+            });
+            if (error) throw error;
+            if (!data || !data.ok) throw new Error((data && data.reason) || 'Nie udało się dodać szkoły');
+            if (nameEl) nameEl.value = '';
+            if (cityEl) cityEl.value = '';
+            schoolOptionsCache = [];
+            setAdminStatus('✓ Szkoła dodana do listy', 'good');
+        } catch (e) {
+            setAdminStatus('⚠ ' + (e.message || 'Nie udało się dodać szkoły'), 'bad');
+        }
+    }
+
+    async function adminResetPassword() {
+        if (!requireAdminPanelAccess()) return;
+        const userEl = document.getElementById('admin-reset-username');
+        const passEl = document.getElementById('admin-reset-password');
+        const username = userEl ? userEl.value.trim() : '';
+        const password = passEl ? passEl.value : '';
+        if (!username || password.length < 6) {
+            setAdminStatus('Podaj nazwę gracza i nowe hasło min. 6 znaków', 'bad');
+            return;
+        }
+        setAdminStatus('⏳ Ustawiam nowe hasło...', 'info');
+        try {
+            const { data, error } = await sb.rpc('admin_set_user_password', {
+                p_username: username,
+                p_new_password: password
+            });
+            if (error) throw error;
+            if (!data || !data.ok) throw new Error((data && data.reason) || 'Nie udało się ustawić hasła');
+            if (passEl) passEl.value = '';
+            setAdminStatus('✓ Hasło zostało ustawione', 'good');
+        } catch (e) {
+            setAdminStatus('⚠ ' + (e.message || 'Nie udało się ustawić hasła'), 'bad');
         }
     }
 
@@ -3630,6 +3888,13 @@
                     case 'showEditProfile': showEditProfile(); break;
                     case 'closeEditProfile': closeEditProfile(); break;
                     case 'saveEditProfile': saveEditProfile(); break;
+                    case 'showAdminPanel': showAdminPanel(); break;
+                    case 'closeAdminPanel': closeAdminPanel(); break;
+                    case 'adminRefreshSchools': renderAdminSchoolRequests(); break;
+                    case 'adminApproveSchoolRequest': adminApproveSchoolRequest(el.dataset.id); break;
+                    case 'adminRejectSchoolRequest': adminRejectSchoolRequest(el.dataset.id); break;
+                    case 'adminCreateSchool': adminCreateSchool(); break;
+                    case 'adminResetPassword': adminResetPassword(); break;
                     case 'topListTab': topListTab(arg); break;
                     case 'refreshProfileTopList': renderProfileTopList(); break;
                     case 'lbScope': lbScope(arg); break;

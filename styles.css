@@ -2311,9 +2311,137 @@ body.game-active #screen-game .btn-container-bottom {
     align-items: flex-end;
 }
 
+.school-request-card {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1.5px solid rgba(15, 118, 110, 0.18);
+    border-radius: 10px;
+    background: rgba(15, 118, 110, 0.045);
+}
+
+.school-request-head {
+    display: grid;
+    gap: 2px;
+    color: var(--ink);
+}
+
+.school-request-head strong {
+    font-family: var(--f-head);
+    font-size: 15px;
+}
+
+.school-request-head span {
+    color: var(--ink-muted);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.school-request-grid,
+.admin-form-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 10px;
+}
+
+.admin-modal-card {
+    max-width: 760px;
+}
+
+.admin-section {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+    border: 1.5px solid rgba(15, 118, 110, 0.14);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.admin-section-head h3 {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--f-head);
+    font-size: 18px;
+}
+
+.admin-list {
+    display: grid;
+    gap: 10px;
+}
+
+.admin-empty {
+    padding: 14px;
+    border-radius: 10px;
+    background: rgba(15, 118, 110, 0.06);
+    color: var(--ink-muted);
+    font-weight: 700;
+    text-align: center;
+}
+
+.admin-request {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    padding: 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: white;
+}
+
+.admin-request-title {
+    margin: 0 0 4px;
+    color: var(--ink);
+    font-weight: 800;
+}
+
+.admin-request-meta {
+    color: var(--ink-muted);
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.35;
+}
+
+.admin-request-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.btn-small {
+    border: 1.5px solid rgba(15, 118, 110, 0.25);
+    background: white;
+    color: var(--c-teal-dark);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-family: var(--f-display);
+    font-weight: 800;
+    cursor: pointer;
+}
+
 @media (max-width: 520px) {
     .ep-row { flex-direction: column; gap: 12px; }
     .ep-row .acc-field { flex: 1 1 auto !important; width: 100%; }
+    .school-request-grid,
+    .admin-form-grid,
+    .admin-request {
+        grid-template-columns: 1fr;
+    }
+    .admin-request-actions {
+        justify-content: stretch;
+    }
+    .admin-request-actions .btn-small {
+        flex: 1 1 auto;
+    }
 }
 
 .top-list {
@@ -4134,7 +4262,8 @@ body.game-active #screen-game .btn-container-bottom {
     letter-spacing: 0.2px;
 }
 
-.acc-field input {
+.acc-field input,
+.acc-field select {
     width: 100%;
     background: white;
     border: 1.5px solid var(--border-strong);
@@ -4148,7 +4277,13 @@ body.game-active #screen-game .btn-container-bottom {
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.acc-field input:focus {
+.acc-field select {
+    min-height: 47px;
+    cursor: pointer;
+}
+
+.acc-field input:focus,
+.acc-field select:focus {
     border-color: var(--c-teal);
     box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
 }
