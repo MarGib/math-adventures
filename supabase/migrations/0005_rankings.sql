@@ -7,6 +7,7 @@
 -- ------------------------------------------------------------
 -- 1) user_stats — dodajemy school/class_name/city
 -- ------------------------------------------------------------
+drop view if exists public.user_stats;
 create or replace view public.user_stats as
 select
     p.id as user_id,
@@ -35,6 +36,7 @@ group by p.id, p.username, p.display_name, p.avatar, p.school, p.class_name, p.c
 -- ------------------------------------------------------------
 -- 2) ranking_schools — agregaty per szkola
 -- ------------------------------------------------------------
+drop view if exists public.leaderboard_schools;
 create or replace view public.leaderboard_schools as
 select
     p.school,
@@ -65,6 +67,7 @@ order by total_score desc;
 -- ------------------------------------------------------------
 -- 3) ranking_classes — agregaty per szkola+klasa
 -- ------------------------------------------------------------
+drop view if exists public.leaderboard_classes;
 create or replace view public.leaderboard_classes as
 select
     p.school,
@@ -95,6 +98,7 @@ order by total_score desc;
 -- ------------------------------------------------------------
 -- 4) ranking_cities — agregaty per miasto
 -- ------------------------------------------------------------
+drop view if exists public.leaderboard_cities;
 create or replace view public.leaderboard_cities as
 select
     p.city,

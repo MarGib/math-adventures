@@ -423,6 +423,7 @@ grant execute on function public.admin_set_user_password(text, text) to authenti
 -- ------------------------------------------------------------
 -- 9) Views use approved school names when school_id exists
 -- ------------------------------------------------------------
+drop view if exists public.leaderboard_global;
 create or replace view public.leaderboard_global as
 select
     g.id,
@@ -446,6 +447,7 @@ left join public.schools s on s.id = p.school_id
 order by g.score desc, g.played_at desc
 limit 100;
 
+drop view if exists public.leaderboard_schools;
 create or replace view public.leaderboard_schools as
 select
     coalesce(s.name, p.school) as school,
@@ -465,6 +467,7 @@ group by coalesce(s.name, p.school), coalesce(p.city, s.city)
 order by total_score desc
 limit 100;
 
+drop view if exists public.leaderboard_classes;
 create or replace view public.leaderboard_classes as
 select
     coalesce(s.name, p.school) as school,
@@ -484,6 +487,7 @@ group by coalesce(s.name, p.school), p.class_name, coalesce(p.city, s.city)
 order by total_score desc
 limit 100;
 
+drop view if exists public.leaderboard_cities;
 create or replace view public.leaderboard_cities as
 select
     coalesce(p.city, s.city) as city,
