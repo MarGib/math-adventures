@@ -2086,6 +2086,10 @@ body.game-active #screen-game .btn-container-bottom {
     border-color: white;
 }
 
+/* Generic is-hidden — uzywane przez welcomeChange itd. */
+.is-hidden { display: none !important; }
+.welcome-back.is-hidden { display: none !important; }
+
 /* Top list retry button (gdy fetch zwisnie) */
 .top-retry-btn {
     background: var(--c-teal);

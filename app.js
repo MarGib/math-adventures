@@ -1608,51 +1608,73 @@
         }
     }
 
-    async function accountSignOut() {
-        if (!confirm('Wylogować się na TYM urządzeniu?\n\nInne urządzenia (telefon, komputer, tablet) na których jesteś zalogowany — pozostaną zalogowane.')) return;
-        try {
-            await cloudSignOut();
-            updateCloudStatusPill();
-            renderWelcomeBack();
-            closeAccount();
-        } catch (e) {
-            alert('Nie udało się wylogować: ' + (e.message || ''));
-        }
+    function accountSignOut() {
+        showAlert(
+            'Wylogować się na TYM urządzeniu?',
+            'Inne urządzenia (telefon, komputer, tablet) na których jesteś zalogowany — pozostaną zalogowane.',
+            '👋',
+            async () => {
+                try {
+                    await cloudSignOut();
+                    updateCloudStatusPill();
+                    renderWelcomeBack();
+                    closeAccount();
+                } catch (e) {
+                    showAlert('Błąd wylogowania', e.message || 'Spróbuj ponownie', '⚠️', null);
+                }
+            }
+        );
     }
 
-    async function accountSignOutEverywhere() {
-        if (!confirm('Wylogować ze WSZYSTKICH urządzeń?\n\nUżyj tej opcji jeżeli zgubiłeś telefon, ktoś poznał Twoje hasło, albo chcesz odzyskać kontrolę nad kontem. Każde urządzenie będzie musiało zalogować się na nowo.')) return;
-        try {
-            await cloudSignOutEverywhere();
-            updateCloudStatusPill();
-            renderWelcomeBack();
-            closeAccount();
-            alert('✓ Wylogowano ze wszystkich urządzeń. Wszystkie sesje (włącznie z tym urządzeniem) zostały zakończone.');
-        } catch (e) {
-            alert('Nie udało się wylogować: ' + (e.message || ''));
-        }
+    function accountSignOutEverywhere() {
+        showAlert(
+            'Wylogować ze WSZYSTKICH urządzeń?',
+            'Użyj tej opcji jeżeli zgubiłeś telefon, ktoś poznał Twoje hasło, albo chcesz odzyskać kontrolę nad kontem. Każde urządzenie będzie musiało zalogować się na nowo.',
+            '🔒',
+            async () => {
+                try {
+                    await cloudSignOutEverywhere();
+                    updateCloudStatusPill();
+                    renderWelcomeBack();
+                    closeAccount();
+                    showAlert(
+                        'Wylogowano wszędzie',
+                        'Wszystkie sesje (włącznie z tym urządzeniem) zostały zakończone.',
+                        '✓',
+                        null
+                    );
+                } catch (e) {
+                    showAlert('Błąd wylogowania', e.message || 'Spróbuj ponownie', '⚠️', null);
+                }
+            }
+        );
     }
 
     function settingsClearData() {
-        const status = document.getElementById('settings-clear-status');
-        if (!confirm('Na pewno usunąć wszystkie wyniki i zapamiętany profil?')) return;
-        try {
-            localStorage.removeItem(storageKey);
-            localStorage.removeItem(legacyStorageKey);
-            localStorage.removeItem(lastUserKey);
-            if (status) {
-                status.textContent = '✓ Wszystkie dane usunięte';
-                status.classList.add('is-good');
+        showAlert(
+            'Wyczyścić wszystkie dane?',
+            'Usuniemy wyniki i zapamiętany profil z tego urządzenia. Konta w chmurze (jeśli istnieją) NIE są usuwane — tylko lokalna kopia.',
+            '🗑️',
+            () => {
+                const status = document.getElementById('settings-clear-status');
+                try {
+                    localStorage.removeItem(storageKey);
+                    localStorage.removeItem(legacyStorageKey);
+                    localStorage.removeItem(lastUserKey);
+                    if (status) {
+                        status.textContent = '✓ Wszystkie dane usunięte';
+                        status.classList.add('is-good');
+                    }
+                    renderProfileTopList();
+                    renderWelcomeBack();
+                } catch (e) {
+                    if (status) {
+                        status.textContent = '⚠ Błąd: ' + (e.message || '');
+                        status.classList.add('is-bad');
+                    }
+                }
             }
-            // Refresh affected widgets
-            renderProfileTopList();
-            renderWelcomeBack();
-        } catch (e) {
-            if (status) {
-                status.textContent = '⚠ Błąd: ' + (e.message || 'nie można wyczyścić');
-                status.classList.add('is-bad');
-            }
-        }
+        );
     }
 
     /** Glowny entry. Strategia:
@@ -2439,9 +2461,15 @@
     }
 
     /* ---- EDIT PROFILE modal ---- */
-    function showEditProfile() {
+    async function showEditProfile() {
         const modal = document.getElementById('modal-edit-profile');
         if (!modal) return;
+
+        // Zamknij modal-konto jezeli byl otwarty — w przeciwnym razie
+        // edit-profile pojawia sie POD nim (same z-index, MIME order).
+        const accModal = document.getElementById('modal-account');
+        if (accModal) accModal.style.display = 'none';
+
         // Wymagamy persistent account
         if (!cloudReady || !cloudUser || !cloudUser._persistent) {
             const status = document.getElementById('ep-status');
@@ -2449,18 +2477,63 @@
                 status.className = 'acc-status is-shown is-info';
                 status.textContent = 'Najpierw stwórz trwałe konto (Konto → Stwórz konto). Wtedy możesz wypełnić profil.';
             }
+            ['ep-school','ep-class','ep-city','ep-journal'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
             modal.style.display = 'flex';
             return;
         }
-        // Prefill z aktualnego profilu
-        const p = cloudUser.profile || {};
-        document.getElementById('ep-school').value = p.school || '';
-        document.getElementById('ep-class').value = p.class_name || '';
-        document.getElementById('ep-city').value = p.city || '';
-        document.getElementById('ep-journal').value = p.journal_no || '';
+
+        // FRESH READ z bazy — nie polegaj na cache w cloudUser.profile,
+        // bo moze byc stale po edycji z innego urzadzenia.
         const status = document.getElementById('ep-status');
-        if (status) { status.textContent = ''; status.className = 'acc-status'; }
+        if (status) {
+            status.className = 'acc-status is-shown is-info';
+            status.textContent = '⏳ Wczytuję profil...';
+        }
+        ['ep-school','ep-class','ep-city','ep-journal'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
         modal.style.display = 'flex';
+
+        try {
+            const { data, error } = await withTimeout(
+                sb.from('profiles')
+                    .select('school, class_name, city, journal_no')
+                    .eq('id', cloudUser.id)
+                    .maybeSingle(),
+                5000,
+                { data: null, error: { message: 'timeout' } }
+            );
+            if (error) throw error;
+            const p = data || {};
+            // Update cache zeby zostal w sync
+            if (cloudUser.profile) {
+                cloudUser.profile.school = p.school || null;
+                cloudUser.profile.class_name = p.class_name || null;
+                cloudUser.profile.city = p.city || null;
+                cloudUser.profile.journal_no = p.journal_no || null;
+            }
+            document.getElementById('ep-school').value = p.school || '';
+            document.getElementById('ep-class').value = p.class_name || '';
+            document.getElementById('ep-city').value = p.city || '';
+            document.getElementById('ep-journal').value = p.journal_no || '';
+            if (status) { status.textContent = ''; status.className = 'acc-status'; }
+        } catch (e) {
+            console.warn('[edit-profile] read failed', e && e.message);
+            // Fallback do cache
+            const p = (cloudUser && cloudUser.profile) || {};
+            document.getElementById('ep-school').value = p.school || '';
+            document.getElementById('ep-class').value = p.class_name || '';
+            document.getElementById('ep-city').value = p.city || '';
+            document.getElementById('ep-journal').value = p.journal_no || '';
+            if (status) {
+                status.className = 'acc-status is-shown is-bad';
+                status.textContent = '⚠ Nie udało się wczytać świeżych danych. Pokazuję ostatnio znane.';
+            }
+        }
     }
 
     function closeEditProfile() {
@@ -2493,36 +2566,47 @@
 
         setStatus('⏳ Zapisuję...', 'info');
         try {
-            await cloudUpdateProfile({
+            const result = await cloudUpdateProfile({
                 school, class_name: className, city, journal_no: journal,
                 avatar: user.avatar
             });
+            console.info('[edit-profile] saved:', result && result.profile);
+            // Werifikacja: fresh read po zapisie
+            const { data: verify } = await sb.from('profiles')
+                .select('school, class_name, city, journal_no')
+                .eq('id', cloudUser.id)
+                .maybeSingle();
+            console.info('[edit-profile] verify after save:', verify);
             setStatus('✓ Profil zapisany', 'good');
+            renderWelcomeBack();
             setTimeout(() => closeEditProfile(), 1200);
         } catch (e) {
             setStatus('⚠ ' + (e.message || 'Nie udało się zapisać'), 'bad');
         }
     }
 
-    async function welcomeChange() {
-        if (!confirm('Wylogować obecnego gracza i przejść do ekranu logowania?\n\nNa tym urządzeniu rozpoczniesz od czystego ekranu. Inne urządzenia tego konta (jeśli istnieją) pozostają zalogowane.')) return;
+    function welcomeChange() {
+        // Nie uzywaj natywnego confirm() — uzyj naszego stylowanego showAlert
+        showAlert(
+            'Wylogować obecnego gracza?',
+            'Na tym urządzeniu rozpoczniesz od czystego ekranu. Inne urządzenia tego konta (jeśli istnieją) pozostają zalogowane.',
+            '↺',
+            () => performWelcomeChange()
+        );
+    }
 
+    async function performWelcomeChange() {
         // 1) Wyloguj z chmury LOCALNIE (scope:'local' — inne urzadzenia
-        //    tego samego konta dalej zalogowane, tylko TO urzadzenie
-        //    wraca do anonimowej sesji).
+        //    tego samego konta dalej zalogowane).
         if (cloudReady && cloudUser && cloudUser._persistent) {
-            try {
-                await cloudSignOut();
-            } catch (e) {
-                console.warn('[welcomeChange] signOut failed:', e && e.message);
-            }
+            try { await cloudSignOut(); }
+            catch (e) { console.warn('[welcomeChange] signOut failed:', e && e.message); }
         }
 
-        // 2) Usun zapamietanego ostatniego gracza (zeby welcome-back juz
-        //    sie nie pojawil przy nastepnym wejsciu)
+        // 2) Usun zapamietanego ostatniego gracza
         try { localStorage.removeItem(lastUserKey); } catch (_) {}
 
-        // 3) Reset stanu user do default (Gracz + sowa)
+        // 3) Reset stanu user
         user = { name: 'Gracz', avatar: '🦉' };
 
         // 4) Wyczysc formularz, przywroc default avatar selection
@@ -2534,27 +2618,29 @@
         const cur = document.getElementById('avatar-current');
         if (cur) cur.textContent = '🦉';
 
-        // 5) Schowaj welcome-back i powiazane widgety
+        // 5) Schowaj welcome-back i powiazane widgety przez KLASE
+        //    (style.display 'none' walczylo z CSS [style*="..."] selektorami).
         const banner = document.getElementById('welcome-back');
         const top = document.getElementById('profile-top');
-        if (banner) banner.style.display = 'none';
-        if (top) top.style.display = 'none';
+        if (banner) { banner.classList.add('is-hidden'); banner.style.display = ''; }
+        if (top) { top.classList.add('is-hidden'); top.style.display = ''; }
         document.body.classList.remove('has-returning-user');
         const grid = document.querySelector('.profile-grid');
         if (grid) grid.style.display = '';
-        // Zatrzymaj rotacje widgetow
         if (typeof pfwState !== 'undefined') {
             if (pfwState.intervalId) { clearInterval(pfwState.intervalId); pfwState.intervalId = null; }
             if (pfwState.progressId) { clearInterval(pfwState.progressId); pfwState.progressId = null; }
         }
 
-        // 6) Odswiez statusy + scroll na gore + focus na nazwe
+        // 6) Pelny re-render — renderWelcomeBack znajdzie pusty lastUser i
+        //    skutecznie schowa banner (zamiast polegania na style.display).
+        renderWelcomeBack();
         renderProfileTopList();
         updateCloudStatusPill();
 
+        // 7) Scroll na gore + focus na nazwe
         const main = document.querySelector('.profile-main');
         if (main && main.scrollTo) main.scrollTo({ top: 0, behavior: 'smooth' });
-
         setTimeout(() => {
             if (usernameInput) usernameInput.focus();
         }, 300);
