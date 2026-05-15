@@ -96,11 +96,15 @@
                 throw new Error('no-session');
             }
 
-            const { data, error } = await sb
+            const { data, error } = await withFallbackTimeout(
+                sb
                 .from('profiles')
                 .upsert({ id: uid, username, avatar: av, display_name: username }, { onConflict: 'id' })
                 .select()
-                .single();
+                .single(),
+                7000,
+                { data: null, error: { message: 'timeout' } }
+            );
 
             if (!error && data) {
                 if (cloudUser) cloudUser.profile = data;
@@ -117,26 +121,35 @@
 
         // FALLBACK: RPC v2 (gdy direct nie zadziała — np. inne RLS, dziwny stan sesji)
         try {
-            const { data, error } = await sb.rpc('claim_username_v2', {
-                p_username: username,
-                p_avatar: av,
-                p_display_name: username
-            });
+            const { data, error } = await withFallbackTimeout(
+                sb.rpc('claim_username_v2', {
+                    p_username: username,
+                    p_avatar: av,
+                    p_display_name: username
+                }),
+                9000,
+                { data: null, error: { message: 'timeout' } }
+            );
             if (!error && data && typeof data === 'object') {
                 if (data.ok && cloudUser) cloudUser.profile = data.profile;
                 return data;
             }
+            if (error) throw error;
         } catch (e) {
             console.warn('[cloud] claim_username_v2 threw:', e && e.message);
         }
 
         // FALLBACK 2: RPC v1
         try {
-            const { data, error } = await sb.rpc('claim_username', {
-                p_username: username,
-                p_avatar: av,
-                p_display_name: username
-            });
+            const { data, error } = await withFallbackTimeout(
+                sb.rpc('claim_username', {
+                    p_username: username,
+                    p_avatar: av,
+                    p_display_name: username
+                }),
+                9000,
+                { data: null, error: { message: 'timeout' } }
+            );
             if (error) throw error;
             if (data === true) {
                 if (cloudUser) cloudUser.profile = { username, avatar: av, display_name: username };
@@ -272,7 +285,7 @@
 
     /** Race fetch z timeoutem. Po X ms odrzucamy promise i zwracamy fallback.
         Bardzo wazne na flakey network — bez tego UI moze zwisac na "Wczytuję..." */
-    function withTimeout(promise, ms, fallback) {
+    function withFallbackTimeout(promise, ms, fallback) {
         let timer;
         const timeoutPromise = new Promise((_, reject) => {
             timer = setTimeout(() => reject(new Error('CLOUD_TIMEOUT')), ms || 5000);
@@ -296,7 +309,7 @@
             if (error) throw error;
             return data || [];
         };
-        return await withTimeout(doFetch(), 5000, []);
+        return await withFallbackTimeout(doFetch(), 5000, []);
     }
 
     /** Pobierz wyniki ZALOGOWANEGO usera z bazy (cross-device sync).
@@ -319,7 +332,7 @@
             if (error) throw error;
             return data || [];
         };
-        return await withTimeout(doFetch(), 5000, []);
+        return await withFallbackTimeout(doFetch(), 5000, []);
     }
 
     /** Fetch agregowanych rankingów (klasy/szkoły/miasta). */
@@ -330,7 +343,7 @@
             if (error) throw error;
             return data || [];
         };
-        return await withTimeout(doFetch(), 5000, []);
+        return await withFallbackTimeout(doFetch(), 5000, []);
     }
 
     /** Top wyniki w danej szkole. */
@@ -461,14 +474,53 @@
     }
 
     /** Wraps a promise with a timeout. Rejects after `ms` if not settled. */
-    function withTimeout(promise, ms, label) {
-        return Promise.race([
-            promise,
-            new Promise((_, reject) => setTimeout(
-                () => reject(new Error(`${label || 'Operacja'} — przekroczono czas (${ms}ms)`)),
-                ms
-            ))
-        ]);
+    function withRejectingTimeout(promise, ms, label) {
+        let timer;
+        const timeoutPromise = new Promise((_, reject) => {
+            timer = setTimeout(() => {
+                const err = new Error(`${label || 'Operacja'} — przekroczono czas (${ms}ms)`);
+                err.code = 'CLIENT_TIMEOUT';
+                reject(err);
+            }, ms);
+        });
+        return Promise.race([promise, timeoutPromise])
+            .finally(() => clearTimeout(timer));
+    }
+
+    function isTimeoutError(err) {
+        return !!(err && (err.code === 'CLIENT_TIMEOUT' || err.message === 'CLOUD_TIMEOUT' || /przekroczono czas/i.test(err.message || '')));
+    }
+
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function waitForSessionUser(matches, totalMs) {
+        const started = Date.now();
+        while (Date.now() - started < totalMs) {
+            try {
+                const { data: sessData } = await sb.auth.getSession();
+                const u = sessData && sessData.session && sessData.session.user;
+                if (u && matches(u)) return u;
+            } catch (_) {}
+            await sleep(600);
+        }
+        return null;
+    }
+
+    async function authRequestWithRecovery(requestPromise, ms, label, matchesSessionUser, onRecovering) {
+        try {
+            return await withRejectingTimeout(requestPromise, ms, label);
+        } catch (e) {
+            if (!isTimeoutError(e)) throw e;
+            if (onRecovering) onRecovering();
+            const recoveredUser = await waitForSessionUser(matchesSessionUser, 12000);
+            if (recoveredUser) {
+                console.warn(`[cloud] ${label} timed out, recovered from local session`);
+                return { data: { user: recoveredUser }, error: null, recovered: true };
+            }
+            throw e;
+        }
     }
 
     /** Sign-up z verbose progress. onStep(text) opcjonalny callback do UI.
@@ -495,9 +547,12 @@
             resultUser = current;
         } else if (current && current.is_anonymous) {
             step('Aktualizuję anonimowe konto (zachowuję wyniki)...');
-            const { data, error } = await withTimeout(
+            const { data, error } = await authRequestWithRecovery(
                 sb.auth.updateUser({ email: synth, password }),
-                15000, 'updateUser'
+                30000,
+                'updateUser',
+                (u) => !!(u && !u.is_anonymous && u.email === synth),
+                () => step('Supabase odpowiada wolno — sprawdzam czy konto już powstało...')
             );
             if (error) {
                 console.error('[cloud] updateUser error:', error);
@@ -510,14 +565,20 @@
                 throw new Error(error.message || 'Aktualizacja konta nie powiodła się');
             }
             resultUser = data && data.user;
+            if (!resultUser) {
+                throw new Error('Nie udało się potwierdzić utworzenia konta. Spróbuj ponownie za chwilę.');
+            }
             if (resultUser && resultUser.is_anonymous) {
                 throw new Error('Konto wciąż anonimowe — wyłącz "Confirm email" w Supabase Auth → Email.');
             }
         } else {
             step('Tworzę nowe konto...');
-            const { data, error } = await withTimeout(
+            const { data, error } = await authRequestWithRecovery(
                 sb.auth.signUp({ email: synth, password }),
-                15000, 'signUp'
+                30000,
+                'signUp',
+                (u) => !!(u && !u.is_anonymous && u.email === synth),
+                () => step('Supabase odpowiada wolno — sprawdzam czy konto już powstało...')
             );
             if (error) {
                 console.error('[cloud] signUp error:', error);
@@ -533,7 +594,7 @@
         }
 
         step('Odświeżam sesję...');
-        await withTimeout(sb.auth.refreshSession(), 4000, 'refreshSession').catch((e) => {
+        await withRejectingTimeout(sb.auth.refreshSession(), 5000, 'refreshSession').catch((e) => {
             console.warn('[cloud] refreshSession skipped:', e && e.message);
         });
 
@@ -542,11 +603,11 @@
         // drugi przelatuje natychmiast.
         let claim;
         try {
-            claim = await withTimeout(cloudClaimUsername(username, user.avatar), 12000, 'claimUsername');
+            claim = await withRejectingTimeout(cloudClaimUsername(username, user.avatar), 22000, 'claimUsername');
         } catch (e) {
             console.warn('[cloud] claimUsername first attempt failed, retrying:', e && e.message);
             step('Rezerwuję nazwę (ponawiam)...');
-            claim = await withTimeout(cloudClaimUsername(username, user.avatar), 12000, 'claimUsername-retry');
+            claim = await withRejectingTimeout(cloudClaimUsername(username, user.avatar), 22000, 'claimUsername-retry');
         }
         if (!claim.ok) {
             const reason = claim.reason || 'unknown';
@@ -561,10 +622,22 @@
             throw new Error(reasonText);
         }
 
+        cloudUser = {
+            id: resultUser.id,
+            profile: claim.profile || (cloudUser && cloudUser.profile) || {
+                id: resultUser.id,
+                username,
+                avatar: user.avatar || '🦉',
+                display_name: username
+            },
+            _persistent: !resultUser.is_anonymous,
+            _email: resultUser.email
+        };
+
         if (email && email.trim()) {
             step('Zapisuję email do odzyskiwania...');
             try {
-                await withTimeout(
+                await withRejectingTimeout(
                     sb.from('profiles').update({ email: email.trim().toLowerCase() }).eq('id', resultUser.id),
                     4000, 'saveEmail'
                 );
@@ -575,7 +648,7 @@
         }
 
         step('Finalizuję...');
-        await withTimeout(refreshCloudUser(), 5000, 'refreshCloudUser').catch((e) => {
+        await withRejectingTimeout(refreshCloudUser(), 6000, 'refreshCloudUser').catch((e) => {
             console.warn('[cloud] refreshCloudUser skipped:', e && e.message);
         });
         return cloudUser;
@@ -590,7 +663,7 @@
         const synth = syntheticEmailFor(username);
 
         step('Loguję na konto...');
-        const { data, error } = await withTimeout(
+        const { data, error } = await withRejectingTimeout(
             sb.auth.signInWithPassword({ email: synth, password }),
             8000, 'signInWithPassword'
         );
@@ -605,7 +678,7 @@
             if (/already.*signed|active.*session/i.test(error.message)) {
                 step('Czyszczę poprzednią sesję...');
                 await sb.auth.signOut({ scope: 'local' }).catch(() => {});
-                const retry = await withTimeout(
+                const retry = await withRejectingTimeout(
                     sb.auth.signInWithPassword({ email: synth, password }),
                     8000, 'signInRetry'
                 );
@@ -616,7 +689,7 @@
         }
 
         step('Pobieram profil...');
-        await withTimeout(refreshCloudUser(), 5000, 'refreshCloudUser');
+        await withRejectingTimeout(refreshCloudUser(), 5000, 'refreshCloudUser');
         if (cloudUser && cloudUser.profile) {
             user.name = cloudUser.profile.username;
             user.avatar = cloudUser.profile.avatar || user.avatar;
@@ -1534,6 +1607,7 @@
     }
 
     async function accountSignUp() {
+        if (accountSignUp._busy) return;
         const name = (document.getElementById('acc-signup-name').value || '').trim();
         const pass = document.getElementById('acc-signup-pass').value || '';
         const email = (document.getElementById('acc-signup-email').value || '').trim();
@@ -1550,6 +1624,14 @@
         if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             setAccStatus('acc-signup-status', 'Nieprawidłowy format e-maila', 'bad');
             return;
+        }
+
+        const submitBtn = document.querySelector('[data-action="accountSignUp"]');
+        const originalText = submitBtn ? submitBtn.textContent : '';
+        accountSignUp._busy = true;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = '⏳ Tworzę konto...';
         }
 
         try {
@@ -1571,6 +1653,12 @@
         } catch (e) {
             console.error('[signup] failed:', e);
             setAccStatus('acc-signup-status', '⚠ ' + (e.message || 'Nie udało się stworzyć konta'), 'bad');
+        } finally {
+            accountSignUp._busy = false;
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
         }
     }
 
@@ -2499,7 +2587,7 @@
         modal.style.display = 'flex';
 
         try {
-            const { data, error } = await withTimeout(
+            const { data, error } = await withFallbackTimeout(
                 sb.from('profiles')
                     .select('school, class_name, city, journal_no')
                     .eq('id', cloudUser.id)
