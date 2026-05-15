@@ -3139,8 +3139,8 @@
         document.querySelectorAll('.lb-tab').forEach(t => t.classList.toggle('active', t.dataset.arg === lbState.scope));
         document.querySelectorAll('.lb-filter').forEach(f => f.classList.toggle('active', f.dataset.arg === lbState.filter));
         // Filtry mode-owe ukryj na rankingach (top szkol/klas/miast nie filtruje sie po misjach)
-        const filters = document.getElementById('lb-filters');
-        if (filters) filters.style.display = lbState.scope === 'rankings' ? 'none' : '';
+        const modeGroup = document.getElementById('lb-mode-group');
+        if (modeGroup) modeGroup.style.display = lbState.scope === 'rankings' ? 'none' : '';
     }
 
     function lbScope(scope) {
@@ -3157,11 +3157,11 @@
 
     async function renderLeaderboard() {
         const container = document.getElementById("leaderboard-content");
-        const filterRow = document.getElementById('lb-filters');
+        const modeGroup = document.getElementById('lb-mode-group');
         container.innerHTML = '<p class="muted-empty">⏳ Wczytuję wyniki...</p>';
 
         // Filtry trybu sa relevantne tylko dla wynikow individualnych
-        if (filterRow) filterRow.style.display = lbState.scope === 'rankings' ? 'none' : '';
+        if (modeGroup) modeGroup.style.display = lbState.scope === 'rankings' ? 'none' : '';
 
         // RANKINGI (top szkol/klas/miast) — osobny renderer z sub-tabami
         if (lbState.scope === 'rankings') {

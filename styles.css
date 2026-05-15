@@ -2017,146 +2017,183 @@ body.game-active #screen-game .btn-container-bottom {
 }
 
 /* Leaderboard controls */
+.lb-subtitle {
+    margin: 8px 0 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-weight: 650;
+    font-size: 13px;
+}
+
 .lb-controls {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 10px;
+    display: grid;
+    gap: 10px;
+    margin-top: 14px;
     position: relative;
     z-index: 1;
 }
 
-/* SCOPE TABS — grid layout dla rownych komorek.
-   Mobile: 3 kolumny (2 rzedy x 3). Desktop: 6 kolumn (1 rzad). */
-.lb-tabs {
+.lb-control-group {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 5px;
-    background: rgba(255, 255, 255, 0.14);
-    padding: 5px;
-    border-radius: 14px;
+    gap: 7px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.10);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
-    border: 1px solid rgba(255, 255, 255, 0.10);
 }
 
-@media (min-width: 620px) {
-    .lb-tabs {
-        grid-template-columns: repeat(6, 1fr);
-    }
-}
-
-.lb-tab {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    background: transparent;
-    border: none;
-    color: rgba(255, 255, 255, 0.92);
-    padding: 9px 6px;
-    border-radius: 10px;
-    font-family: var(--f-display);
-    font-weight: 600;
-    font-size: 12.5px;
-    cursor: pointer;
-    transition: background 0.18s ease, color 0.18s ease, transform 0.15s var(--ease-spring);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    min-width: 0;
-    letter-spacing: 0.1px;
+.lb-control-label {
+    color: rgba(255, 255, 255, 0.76);
+    font-family: var(--f-head);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
     line-height: 1;
+    text-transform: uppercase;
 }
 
-.lb-tab-ico { font-size: 14px; line-height: 1; }
-.lb-tab-txt { overflow: hidden; text-overflow: ellipsis; }
-
-.lb-tab:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: white;
+.lb-tabs,
+.lb-filters {
+    display: grid;
+    gap: 7px;
+    width: 100%;
 }
 
-.lb-tab:active {
-    transform: scale(0.97);
-}
-
-.lb-tab.active {
-    background: white;
-    color: var(--c-teal-dark);
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.20);
-    font-weight: 700;
-}
-
-/* Phone — zmniejsz font/padding zeby dluzsze etykiety sie miescily */
-@media (max-width: 619px) {
-    .lb-tab {
-        padding: 8px 4px;
-        font-size: 11px;
-        gap: 3px;
-        letter-spacing: 0;
-    }
-    .lb-tab-ico { font-size: 12px; }
-}
-
-/* Bardzo waskie ekrany — schowaj tekst, zostaw tylko ikone */
-@media (max-width: 360px) {
-    .lb-tab { padding: 9px 4px; gap: 0; }
-    .lb-tab-txt { display: none; }
-    .lb-tab-ico { font-size: 18px; }
-}
-
-.lb-tab {
-    background: transparent;
-    border: none;
-    color: white;
-    padding: 6px 14px;
-    border-radius: 999px;
-    font-family: var(--f-display);
-    font-weight: 600;
-    font-size: 13px;
-    cursor: pointer;
-    transition: background 0.2s ease, color 0.2s ease;
-}
-
-.lb-tab:hover { background: rgba(255, 255, 255, 0.18); }
-
-.lb-tab.active {
-    background: white;
-    color: var(--c-teal-dark);
+.lb-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .lb-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lb-tab,
+.lb-filter {
+    min-width: 0;
+    min-height: 44px;
+    border: 1px solid rgba(255, 255, 255, 0.20);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.11);
+    color: rgba(255, 255, 255, 0.94);
+    cursor: pointer;
+    font-family: var(--f-display);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.1;
+    transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease, transform 0.15s var(--ease-spring);
+}
+
+.lb-tab {
     display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 8px;
 }
 
 .lb-filter {
-    background: rgba(255, 255, 255, 0.10);
-    border: 1px solid rgba(255, 255, 255, 0.20);
-    color: white;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-family: var(--f-display);
-    font-weight: 600;
-    font-size: 11px;
-    cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 10px;
 }
 
+.lb-tab-ico,
+.lb-filter-ico {
+    flex: 0 0 auto;
+    font-size: 17px;
+    line-height: 1;
+}
+
+.lb-tab-txt,
+.lb-filter span:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.lb-tab:hover,
 .lb-filter:hover {
-    background: rgba(255, 255, 255, 0.20);
-    border-color: rgba(255, 255, 255, 0.40);
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.34);
 }
 
+.lb-tab:active,
+.lb-filter:active {
+    transform: scale(0.98);
+}
+
+.lb-tab.active,
 .lb-filter.active {
-    background: white;
+    background: #fff;
+    border-color: #fff;
     color: var(--c-teal-dark);
-    border-color: white;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+}
+
+@media (min-width: 720px) {
+    .lb-controls {
+        grid-template-columns: minmax(0, 1.12fr) minmax(260px, 0.88fr);
+        align-items: start;
+    }
+
+    .lb-tabs {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .lb-filters {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 1040px) {
+    .lb-controls {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .lb-tabs,
+    .lb-filters {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 520px) {
+    .lb-subtitle {
+        font-size: 12px;
+    }
+
+    .lb-control-group {
+        padding: 8px;
+        border-radius: 14px;
+    }
+
+    .lb-tabs {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .lb-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .lb-tab,
+    .lb-filter {
+        min-height: 42px;
+        border-radius: 11px;
+        font-size: 11.5px;
+        padding: 8px 5px;
+        gap: 4px;
+    }
+
+    .lb-tab {
+        flex-direction: column;
+    }
+
+    .lb-tab-ico,
+    .lb-filter-ico {
+        font-size: 16px;
+    }
 }
 
 /* Generic is-hidden — uzywane przez welcomeChange itd. */

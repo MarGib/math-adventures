@@ -637,23 +637,29 @@
             <div class="modal-header">
                 <button class="modal-close" type="button" data-action="closeLeaderboard" aria-label="Zamknij tablicę wyników">×</button>
                 <h2>Tablica wyników</h2>
-                <p style="margin:8px 0 0; color: rgba(255,255,255,0.85); font-weight:600; font-size:13px;">Moje: chronologicznie (najnowsze u góry) · Globalnie: rankingiem · Klik = pełny raport</p>
+                <p class="lb-subtitle">Wyniki lokalne, globalne i szkolne</p>
                 <div class="lb-controls">
-                    <div class="lb-tabs" id="lb-scope-tabs">
-                        <button class="lb-tab active" type="button" data-action="lbScope" data-arg="my"><span class="lb-tab-ico">👤</span><span class="lb-tab-txt">Moje</span></button>
-                        <button class="lb-tab lb-tab-class" type="button" data-action="lbScope" data-arg="class" style="display:none;"><span class="lb-tab-ico">🏫</span><span class="lb-tab-txt">Klasa</span></button>
-                        <button class="lb-tab lb-tab-school" type="button" data-action="lbScope" data-arg="school" style="display:none;"><span class="lb-tab-ico">📚</span><span class="lb-tab-txt">Szkoła</span></button>
-                        <button class="lb-tab lb-tab-city" type="button" data-action="lbScope" data-arg="city" style="display:none;"><span class="lb-tab-ico">🏙️</span><span class="lb-tab-txt">Miasto</span></button>
-                        <button class="lb-tab" type="button" data-action="lbScope" data-arg="global"><span class="lb-tab-ico">🌐</span><span class="lb-tab-txt">Globalnie</span></button>
-                        <button class="lb-tab" type="button" data-action="lbScope" data-arg="rankings"><span class="lb-tab-ico">🏆</span><span class="lb-tab-txt">Rankingi</span></button>
+                    <div class="lb-control-group">
+                        <div class="lb-control-label">Zakres</div>
+                        <div class="lb-tabs" id="lb-scope-tabs">
+                            <button class="lb-tab active" type="button" data-action="lbScope" data-arg="my"><span class="lb-tab-ico">👤</span><span class="lb-tab-txt">Moje</span></button>
+                            <button class="lb-tab lb-tab-class" type="button" data-action="lbScope" data-arg="class" style="display:none;"><span class="lb-tab-ico">🏫</span><span class="lb-tab-txt">Klasa</span></button>
+                            <button class="lb-tab lb-tab-school" type="button" data-action="lbScope" data-arg="school" style="display:none;"><span class="lb-tab-ico">📚</span><span class="lb-tab-txt">Szkoła</span></button>
+                            <button class="lb-tab lb-tab-city" type="button" data-action="lbScope" data-arg="city" style="display:none;"><span class="lb-tab-ico">🏙️</span><span class="lb-tab-txt">Miasto</span></button>
+                            <button class="lb-tab" type="button" data-action="lbScope" data-arg="global"><span class="lb-tab-ico">🌐</span><span class="lb-tab-txt">Globalnie</span></button>
+                            <button class="lb-tab" type="button" data-action="lbScope" data-arg="rankings"><span class="lb-tab-ico">🏆</span><span class="lb-tab-txt">Rankingi</span></button>
+                        </div>
                     </div>
-                    <div class="lb-filters" id="lb-filters">
-                        <button class="lb-filter active" type="button" data-action="lbFilter" data-arg="all">Wszystkie</button>
-                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="add">➕ Dodawanie</button>
-                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="sub">➖ Odejmowanie</button>
-                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="mul">✖️ Mnożenie</button>
-                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="div">➗ Dzielenie</button>
-                        <button class="lb-filter" type="button" data-action="lbFilter" data-arg="mix">🎲 Mix</button>
+                    <div class="lb-control-group" id="lb-mode-group">
+                        <div class="lb-control-label">Tryb</div>
+                        <div class="lb-filters" id="lb-filters">
+                            <button class="lb-filter active" type="button" data-action="lbFilter" data-arg="all"><span>Wszystkie</span></button>
+                            <button class="lb-filter" type="button" data-action="lbFilter" data-arg="add"><span class="lb-filter-ico">➕</span><span>Dodawanie</span></button>
+                            <button class="lb-filter" type="button" data-action="lbFilter" data-arg="sub"><span class="lb-filter-ico">➖</span><span>Odejmowanie</span></button>
+                            <button class="lb-filter" type="button" data-action="lbFilter" data-arg="mul"><span class="lb-filter-ico">✖️</span><span>Mnożenie</span></button>
+                            <button class="lb-filter" type="button" data-action="lbFilter" data-arg="div"><span class="lb-filter-ico">➗</span><span>Dzielenie</span></button>
+                            <button class="lb-filter" type="button" data-action="lbFilter" data-arg="mix"><span class="lb-filter-ico">🎲</span><span>Mix</span></button>
+                        </div>
                     </div>
                 </div>
             </div>
